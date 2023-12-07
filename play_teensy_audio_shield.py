@@ -15,14 +15,13 @@
 # requires a MicroPython driver for the SGTL5000 codec
 
 import os
-from machine import I2C
-from machine import I2S
-from machine import Pin
-from machine import SDCard
+
+from machine import I2C, I2S, Pin, SDCard
+
 from sgtl5000 import CODEC
 
-sd = SDCard(1)  # Teensy 4.1: sck=45, mosi=43, miso=42, cs=44
-os.mount(sd, "/sd")
+# sd = SDCard(1)  # Teensy 4.1: sck=45, mosi=43, miso=42, cs=44
+# os.mount(sd, "/sd")
 
 # ======= I2S CONFIGURATION =======
 SCK_PIN = 21
@@ -62,7 +61,8 @@ codec.headphone_select(0)
 codec.mute_headphone(False)
 codec.volume(0.7, 0.7)
 
-wav = open("/sd/{}".format(WAV_FILE), "rb")
+# wav = open("/sd/{}".format(WAV_FILE), "rb")
+wav = open("think.wav", "rb")
 _ = wav.seek(44)  # advance to first byte of Data section in WAV file
 
 # allocate sample array
@@ -87,7 +87,7 @@ except (KeyboardInterrupt, Exception) as e:
 
 # cleanup
 wav.close()
-os.umount("/sd")
-sd.deinit()
+# os.umount("/sd")
+# sd.deinit()
 audio_out.deinit()
 print("Done")
