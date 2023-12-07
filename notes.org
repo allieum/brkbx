@@ -1,0 +1,16 @@
+#+title: Notes
+
+* breakbox 1.0 functionality
+** looping samples of various lengths
+** internal clock & midi in
+** keyboard controls
+** oled screen
+** dmx
+** led dot lights
+** fx
+*** step repeat
+*** timestretch
+*** pitch mod
+*** spice
+*** gate
+**
