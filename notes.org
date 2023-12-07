@@ -17,3 +17,39 @@
 
 * brkbx MVP
 **
+
+
+* Todos
+  ** init script
+  *** call mpr to move library files onto the teensy board
+  *** possibly mount wab files to the board, or just have them on the sd card
+  ** initial project architecture
+  *** map dependencies
+  *** crude interfaces
+  *** i/o, sample playing, synchronization, effects, midi
+  ** major interaction points
+  *** sample interacting with sequencer
+
+* Hopes/Assumptions
+  ** Previous bbox scheduler was complicated in order to account for delay
+  ** Hope is that an embedded project will be able to have a much simpler scheduler
+  ** How?
+  *** Real-time audio device
+  *** lightweight enough effects to not require a queue
+  *** How many effects can we get away with?
+  **** What is our processing power?
+  **** What is the cost of each effect?
+  **** What factors will introduce delay?
+  **** How much delay can we tolerate?
+  **** Probably need to do some research on this
+  **** Wrong! We're gonna go for it
+
+
+
+* Architecture stuff
+  * Sample
+  ** Array of samples
+  
+  * What needs to be stateful?
+  ** effects don't really, can make them chainable
+  ** midi probably does
