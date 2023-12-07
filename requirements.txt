@@ -1,0 +1,2 @@
+mpr==1.22.2
+platformdirs==4.1.0
