@@ -13,6 +13,9 @@
 # - the write() method blocks until the entire sample buffer is written to the I2S interface
 #
 # requires a MicroPython driver for the SGTL5000 codec
+from typing import Optional
+from adafruit_midi import MIDI
+from adafruit_midi.timing_clock import TimingClock
 
 import os
 from machine import I2C
