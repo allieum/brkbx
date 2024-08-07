@@ -22,6 +22,7 @@ from machine import I2C
 from machine import I2S
 from machine import Pin
 from machine import SDCard
+from machine import UART
 from sgtl5000 import CODEC
 
 # sd = SDCard(1)  # Teensy 4.1: sck=45, mosi=43, miso=42, cs=44
@@ -42,6 +43,17 @@ WAV_SAMPLE_SIZE_IN_BITS = 16
 FORMAT = I2S.STEREO
 SAMPLE_RATE_IN_HZ = 44100
 # ======= AUDIO CONFIGURATION =======
+
+# MIDI config
+RX_PIN = 28
+TX_PIN = 29
+
+# https://docs.micropython.org/en/latest/mimxrt/pinout.html#mimxrt-uart-pinout
+# UART7 is pins 28, 29
+uart = UART(7)
+uart.init(31250)
+
+midi = MIDI(midi_in=uart, midi_out=uart)
 
 audio_out = I2S(
     I2S_ID,
