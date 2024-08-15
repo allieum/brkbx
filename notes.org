@@ -1,19 +1,29 @@
 #+title: Notes
 
-* breakbox 1.0 functionality
-** looping samples of various lengths
-** internal clock & midi in
-** keyboard controls
-** oled screen
-** dmx
-** led dot lights
-** fx
-*** step repeat
-*** timestretch
-*** pitch mod
-*** spice
-*** gate
-** banks
 
-* brkbx MVP
+
+
+
+* deferred matters
+** noisy I2S: sending zeros during silence? deinit i2s?
+
+
+
+* archive initial notes
+** breakbox 1.0 functionality
+*** looping samples of various lengths
+*** internal clock & midi in
+*** keyboard controls
+*** oled screen
+*** dmx
+*** led dot lights
+*** fx
+**** step repeat
+**** timestretch
+**** pitch mod
+**** spice
+**** gate
+*** banks
+
+** brkbx MVP
 **

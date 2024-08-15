@@ -1,0 +1,8 @@
+{
+    "reportMissingModuleSource": false,
+    "exclude": "src/lib",
+
+    "extraPaths": [
+        "src/lib"
+    ]
+}
