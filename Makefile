@@ -1,2 +1,2 @@
-run:
-	mpr run src/main.py
+xrun:
+	cd src && mpr xrun -f main.py

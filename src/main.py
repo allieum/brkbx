@@ -13,7 +13,6 @@
 # - the write() method blocks until the entire sample buffer is written to the I2S interface
 #
 # requires a MicroPython driver for the SGTL5000 codec
-from typing import Optional
 from adafruit_midi import MIDI
 from adafruit_midi.timing_clock import TimingClock
 from adafruit_midi.start import Start
@@ -26,6 +25,11 @@ from machine import Pin
 from machine import SDCard
 from machine import UART
 from sgtl5000 import CODEC
+
+import utility
+
+
+logger = utility.get_logger(__name__)
 
 sd = SDCard(1)  # Teensy 4.1: sck=45, mosi=43, miso=42, cs=44
 os.mount(sd, "/sd")
@@ -101,10 +105,9 @@ _ = wav.seek(44)  # advance to first byte of Data section in WAV file
 wav_samples = bytearray(1000)
 wav_samples_mv = memoryview(wav_samples)
 
-
 # continuously read audio samples from the WAV file
 # and write them to an I2S DAC
-print("==========  START PLAYBACK ==========")
+logger.info("==========  START PLAYBACK ==========")
 started = False
 
 # zeros = bytearray(0 for _ in range(1000))
@@ -134,12 +137,12 @@ try:
             msg = midi.receive()
             if msg is not None:
                 if isinstance(msg, Start):
-                    print(f"start! {msg}")
+                    logger.info(f"start! {msg}")
                     started = True
                     _ = wav.seek(44)
                 if isinstance(msg, Stop):
                     started = False
-                    print(f"stop! {msg}")
+                    logger.info(f"stop! {msg}")
 
 except (KeyboardInterrupt, Exception) as e:
     print("caught exception {} {}".format(type(e).__name__, e))
