@@ -6,7 +6,7 @@ import time
 # teensy4.1 only has seconds in time.time() so use an alt Formatter
 # as a hack to include more fine grained (relative) time
 class UsFormatter(logging.Formatter):
-    def formatTime(self, datefmt, record):
+    def formatTime(self, *_):
         return time.ticks_us() / 1000000
 
 format_str = '%(asctime)s - %(name)s - %(levelname)s: %(message)s'
