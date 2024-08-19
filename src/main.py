@@ -57,9 +57,10 @@ TX_PIN = 29
 # https://docs.micropython.org/en/latest/mimxrt/pinout.html#mimxrt-uart-pinout
 # UART7 is pins 28, 29
 uart = UART(7)
-uart.init(31250, timeout=0, timeout_char=0)
+uart.init(31250, timeout=1, timeout_char=1)
 
-midi = MIDI(midi_in=uart, midi_out=uart, in_buf_size=3)
+# TODO: can't handle multibyte messages, increasing buffer size delays receipt of TimingClock so keep it fixed for now
+midi = MIDI(midi_in=uart, midi_out=uart, in_buf_size=1)
 
 audio_out = I2S(
     I2S_ID,
@@ -98,6 +99,7 @@ codec.adc_high_pass_filter(enable=False)
 codec.audio_processor(enable=False)
 
 wav = open("/sd/{}".format(WAV_FILE), "rb")
+# TODO: 44 is not safe assumption, could parse file, see https://stackoverflow.com/questions/19991405/how-can-i-detect-whether-a-wav-file-has-a-44-or-46-byte-header
 _ = wav.seek(44)  # advance to first byte of Data section in WAV file
 
 # allocate sample array
@@ -118,6 +120,12 @@ started = False
 # audio_out.irq(i2s_irq)
 # audio_out.write(zeros)
 midi_clock = MidiClock()
+
+
+# WAV file strategy:
+# 1) calculate offsets into file for each beat
+# 2) trigger those on the proper midi step
+# 3) figure out time stretching or w/e
 
 try:
     while True:
