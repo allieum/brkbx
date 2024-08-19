@@ -5,6 +5,7 @@
 
 
 * deferred matters
+** auto code formatting
 ** noisy I2S: sending zeros during silence? deinit i2s?
 
 

@@ -26,8 +26,8 @@ from machine import SDCard
 from machine import UART
 from sgtl5000 import CODEC
 
+from clock import MidiClock
 import utility
-
 
 logger = utility.get_logger(__name__)
 
@@ -117,6 +117,7 @@ started = False
 #         i2s.write(zeros)
 # audio_out.irq(i2s_irq)
 # audio_out.write(zeros)
+midi_clock = MidiClock()
 
 try:
     while True:
@@ -137,12 +138,14 @@ try:
             msg = midi.receive()
             if msg is not None:
                 if isinstance(msg, Start):
-                    logger.info(f"start! {msg}")
+                    midi_clock.start()
                     started = True
                     _ = wav.seek(44)
                 if isinstance(msg, Stop):
+                    midi_clock.stop()
                     started = False
-                    logger.info(f"stop! {msg}")
+                if isinstance(msg, TimingClock):
+                    midi_clock.process_clock()
 
 except (KeyboardInterrupt, Exception) as e:
     print("caught exception {} {}".format(type(e).__name__, e))
