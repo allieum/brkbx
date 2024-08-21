@@ -27,6 +27,7 @@ from machine import UART
 from sgtl5000 import CODEC
 
 from clock import MidiClock
+from sample import Sample
 import utility
 
 logger = utility.get_logger(__name__)
@@ -120,7 +121,7 @@ started = False
 # audio_out.irq(i2s_irq)
 # audio_out.write(zeros)
 midi_clock = MidiClock()
-
+think = Sample("think.wav")
 
 # WAV file strategy:
 # 1) calculate offsets into file for each beat

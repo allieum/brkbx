@@ -15,7 +15,7 @@ _level_dict = {
 # as a hack to include more fine grained (relative) time
 class UsFormatter(logging.Formatter):
     def formatTime(self, *_):
-        return time.ticks_us() / 1000000
+        return f"{time.ticks_us() / 1000000:10.6f}"
 
 format_str = '%(asctime)s - %(name)s - %(levelname)s: %(message)s'
 level = logging.INFO
