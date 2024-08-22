@@ -24,15 +24,17 @@ class MidiClock:
         self.play_mode = False
 
     def process_clock(self) -> int | None:
-        """ process midi timing clock message """
+        """ process midi timing clock message
+        :returns which 32nd note step clock message lands on, if any
+        """
         self.clock_count += 1
         ticks = ticks_us()
         secs_per_tick = ticks_diff(ticks, self.last_clock_ticks) / 1000000
         secs_per_beat = secs_per_tick * 24
-        bpm = round(60 / secs_per_beat)
+        self.bpm = round(60 / secs_per_beat)
         # logger.debug(f"bpm is {bpm}")
         self.last_clock_ticks = ticks
-        if self.play_mode and self.clock_count % 6 == 0:
+        if self.play_mode and self.clock_count % 3 == 0:
             self.song_position += 1
             logger.debug(f"song position {self.song_position}")
             return self.song_position

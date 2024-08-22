@@ -130,15 +130,15 @@ think = Sample("think.wav")
 
 try:
     while True:
-        if started:
-            num_read = wav.readinto(wav_samples_mv)
-            # end of WAV file?
-            if num_read == 0:
-                # end-of-file, advance to first byte of Data section
-                _ = wav.seek(44)
-            else:
-                _ = audio_out.write(wav_samples_mv[:num_read])
-                # pass
+        # if started:
+        #     num_read = wav.readinto(wav_samples_mv)
+        #     # end of WAV file?
+        #     if num_read == 0:
+        #         # end-of-file, advance to first byte of Data section
+        #         _ = wav.seek(44)
+        #     else:
+        #         _ = audio_out.write(wav_samples_mv[:num_read])
+        #         # pass
         # else:
         #     audio_out.write(zeros)
 
@@ -154,7 +154,21 @@ try:
                     midi_clock.stop()
                     started = False
                 if isinstance(msg, TimingClock):
-                    midi_clock.process_clock()
+                    step = midi_clock.process_clock()
+                    if step is not None:
+                        # logger.info(f"getting step {step}")
+                        samples = think.get_chunk(step)
+                        # logger.info(f"playing samples for step {step}")
+                        rate = midi_clock.bpm / think.bpm
+                        logger.info(f"play rate for step {step} is {rate}")
+                        target_samples = round(think.samples_per_chunk / rate)
+                        logger.info(f"start write {step}")
+                        for i in range(target_samples):
+                            j = round(i * rate)
+                            audio_out.write(samples[j * 4: j * 4 + 4])
+                        logger.info(f"end write {step}")
+                        # ret = audio_out.write(samples)
+                        # logger.info(f"write returned {ret} for step {step}")
 
 except (KeyboardInterrupt, Exception) as e:
     print("caught exception {} {}".format(type(e).__name__, e))
