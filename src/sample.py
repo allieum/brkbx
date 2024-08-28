@@ -63,7 +63,7 @@ class Sample:
     def get_chunk(self, i: int) -> memoryview:
         """ read the ith chunk of wav file into memory and return it """
         self.wav_file.seek(offset := self.wav_offset + i % CHUNKS * self.chunk_size)
-        logger.info(f"reading offset {offset}")
+        # logger.info(f"reading offset {offset}")
         self.wav_file.readinto(self.wav_samples_mv)
-        logger.info(f"samples array {self.wav_samples[:64]}")
+        # logger.info(f"samples array {self.wav_samples[:64]}")
         return self.wav_samples_mv

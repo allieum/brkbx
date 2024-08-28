@@ -1,8 +1,9 @@
 {
     "reportMissingModuleSource": false,
     "exclude": ["src/lib"],
+    "include": ["src"],
 
     "extraPaths": [
-        "src/lib"
+        "src/lib", "typings"
     ]
 }
