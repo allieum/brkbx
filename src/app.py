@@ -28,6 +28,7 @@ from sgtl5000 import CODEC
 
 from clock import MidiClock
 from control import joystick
+from fx import Gate, Latch
 from sample import Sample
 import utility
 
@@ -126,7 +127,8 @@ think = Sample("think.wav")
 # 1) calculate offsets into file for each beat
 # 2) trigger those on the proper midi step
 # 3) figure out time stretching or w/e
-
+gate = Gate()
+latch = Latch()
 try:
     while True:
         # if started:
@@ -155,7 +157,18 @@ try:
                 if isinstance(msg, TimingClock):
                     step = midi_clock.process_clock()
                     if step is not None:
-                        # logger.info(f"getting step {step}")
+                        x, y = joystick.position()
+                        if x > 0.5:
+                            step = latch.get(step)
+                            if y < -0.5:
+                                latch.reps = 4
+                            elif y > 0.5:
+                                latch.reps = 2
+                            else:
+                                latch.reps = None
+                        else:
+                            latch.cancel()
+                        # logger.info(f"getting step {step}"
                         samples = think.get_chunk(step)
                         # logger.info(f"playing samples for step {step}")
                         rate = midi_clock.bpm / think.bpm
@@ -163,12 +176,17 @@ try:
                         target_samples = round(think.samples_per_chunk / rate)
                         # logger.info(f"start write {step}")
                         # TODO this is probably causing us to miss clocks since it takes ~20ms. think about this.
-                        x, _ = joystick.position()
                         # at 32nd notes this gate is kinda choppy nonsense. could work at meta level.
-                        gate = 1 if x > 0 else 1 + x
+                        gate.ratio = 1 if x > 0 else 1 + x
+                        gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
+                        on_steps = gate.ratio * gate.period
+                        play_step = step % gate.period <= on_steps
+
+
                         for i in range(target_samples):
                             j = round(i * rate)
-                            if i / target_samples < gate:
+                            # if i / target_samples < gate:
+                            if play_step:
                                 audio_out.write(samples[j * 4: j * 4 + 4])
                             else:
                                 audio_out.write(silence)
