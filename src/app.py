@@ -27,7 +27,7 @@ from machine import UART
 from sgtl5000 import CODEC
 
 from clock import MidiClock
-from control import joystick
+from control import joystick, rotary, rotary_pressed
 from fx import Gate, Latch
 from sample import Sample
 import utility
@@ -129,6 +129,7 @@ think = Sample("think.wav")
 # 3) figure out time stretching or w/e
 gate = Gate()
 latch = Latch()
+rotary_position = rotary.value()
 try:
     while True:
         # if started:
@@ -144,6 +145,9 @@ try:
         #     audio_out.write(zeros)
 
         # if uart.any() > 0:
+        if rotary_position != rotary.value():
+            rotary_position = rotary.value()
+            logger.info(f"rotary postiton {rotary_position} {rotary_pressed()}")
         if uart.any():
             msg = midi.receive()
             if msg is not None:

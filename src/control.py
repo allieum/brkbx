@@ -1,12 +1,14 @@
 from typing import Tuple
 from adafruit_simplemath import map_range
 from machine import Pin, ADC, Signal
+from rotary_irq_rp2 import RotaryIRQ
 
 JOYSTICK_X = Pin("A10")
 JOYSTICK_Y = Pin("A11")
 JOYSTICK_SEL = Pin("D30", Pin.IN, Pin.PULL_UP)
 
 ADC_MAX = 65536
+
 
 class Joystick:
     def __init__(self, x: Pin, y: Pin, sel: Pin):
@@ -24,3 +26,12 @@ class Joystick:
 
 
 joystick = Joystick(JOYSTICK_X, JOYSTICK_Y, JOYSTICK_SEL)
+
+
+ROT_CLK = "D33"
+ROT_DT = "D34"
+rotary_button = Signal(Pin("D35", Pin.IN, Pin.PULL_UP), invert=True)
+
+rotary = RotaryIRQ(ROT_CLK, ROT_DT)
+def rotary_pressed():
+    return rotary_button.value() is 1
