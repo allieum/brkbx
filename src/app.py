@@ -29,7 +29,7 @@ from sgtl5000 import CODEC
 from clock import MidiClock
 from control import joystick, rotary, rotary_pressed
 from fx import Gate, Latch
-from sample import Sample
+from sample import Sample, load_samples
 import utility
 
 logger = utility.get_logger(__name__)
@@ -101,6 +101,7 @@ codec.volume(0.9, 0.9)
 codec.adc_high_pass_filter(enable=False)
 codec.audio_processor(enable=False)
 
+samples = load_samples("/sd/samples")
 wav = open("/sd/{}".format(WAV_FILE), "rb")
 # TODO: 44 is not safe assumption, could parse file, see https://stackoverflow.com/questions/19991405/how-can-i-detect-whether-a-wav-file-has-a-44-or-46-byte-header
 _ = wav.seek(44)  # advance to first byte of Data section in WAV file
@@ -121,7 +122,6 @@ silence = bytearray(0 for _ in range(4))
 # audio_out.irq(i2s_irq)
 # audio_out.write(zeros)
 midi_clock = MidiClock()
-think = Sample("think.wav")
 
 # WAV file strategy:
 # 1) calculate offsets into file for each beat
@@ -130,6 +130,7 @@ think = Sample("think.wav")
 gate = Gate()
 latch = Latch()
 rotary_position = rotary.value()
+current_sample = samples[rotary_position % len(samples)]
 try:
     while True:
         # if started:
@@ -147,7 +148,9 @@ try:
         # if uart.any() > 0:
         if rotary_position != rotary.value():
             rotary_position = rotary.value()
+            current_sample = samples[rotary_position % len(samples)]
             logger.info(f"rotary postiton {rotary_position} {rotary_pressed()}")
+            logger.info(f"switched to sample {current_sample.name}")
         if uart.any():
             msg = midi.receive()
             if msg is not None:
@@ -173,11 +176,11 @@ try:
                         else:
                             latch.cancel()
                         # logger.info(f"getting step {step}"
-                        samples = think.get_chunk(step)
+                        chunk_samples = current_sample.get_chunk(step)
                         # logger.info(f"playing samples for step {step}")
-                        rate = midi_clock.bpm / think.bpm
+                        rate = midi_clock.bpm / current_sample.bpm
                         # logger.info(f"play rate for step {step} is {rate}")
-                        target_samples = round(think.samples_per_chunk / rate)
+                        target_samples = round(current_sample.samples_per_chunk / rate)
                         # logger.info(f"start write {step}")
                         # TODO this is probably causing us to miss clocks since it takes ~20ms. think about this.
                         # at 32nd notes this gate is kinda choppy nonsense. could work at meta level.
@@ -191,7 +194,7 @@ try:
                             j = round(i * rate)
                             # if i / target_samples < gate:
                             if play_step:
-                                audio_out.write(samples[j * 4: j * 4 + 4])
+                                audio_out.write(chunk_samples[j * 4: j * 4 + 4])
                             else:
                                 audio_out.write(silence)
                         # logger.info(f"end write {step}")

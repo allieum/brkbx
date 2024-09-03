@@ -1,6 +1,7 @@
-from typing import Tuple
+from typing import Tuple, List
 import utility
 import math
+import os
 
 logger = utility.get_logger(__name__)
 
@@ -40,8 +41,9 @@ CHUNKS = 32
 
 class Sample:
     def __init__(self, wav_filename: str):
-        self.wav_file = open(f"/sd/{wav_filename}", "rb")
+        self.wav_file = open(wav_filename, "rb")
         self.wav_offset, self.wav_size = find_wav_data(self.wav_file)
+        self.name = wav_filename
 
         nsamples = self.wav_size / CHANNELS / BYTES_PER_SAMPLE
         length = nsamples / SAMPLE_RATE
@@ -67,3 +69,8 @@ class Sample:
         self.wav_file.readinto(self.wav_samples_mv)
         # logger.info(f"samples array {self.wav_samples[:64]}")
         return self.wav_samples_mv
+
+
+def load_samples(folder: str) -> List[Sample]:
+    files = sorted(os.listdir(folder))
+    return [Sample(f"{folder}/{wav}") for wav in files]
