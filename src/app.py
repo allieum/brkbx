@@ -165,8 +165,9 @@ try:
                     step = midi_clock.process_clock()
                     if step is not None:
                         x, y = joystick.position()
-                        if x > 0.5:
-                            step = latch.get(step)
+                        if x > 0.1:
+                            length = 4 if x > 0.9 else 2 if x > 0.5 else 1
+                            step = latch.get(step, length)
                             if y < -0.5:
                                 latch.reps = 4
                             elif y > 0.5:
