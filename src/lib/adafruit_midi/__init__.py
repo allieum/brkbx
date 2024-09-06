@@ -114,7 +114,7 @@ class MIDI:
             raise RuntimeError("Invalid output channel")
         self._out_channel = channel
 
-    def receive(self) -> Optional[MIDIMessage]:
+    def receive(self, data = None) -> Optional[MIDIMessage]:
         """Read messages from MIDI port, store them in internal read buffer, then parse that data
         and return the first MIDI message (event).
         This maintains the blocking characteristics of the midi_in port.
@@ -125,7 +125,8 @@ class MIDI:
         # If the buffer here is not full then read as much as we can fit from
         # the input port
         if len(self._in_buf) < self._in_buf_size:
-            bytes_in = self._midi_in.read(self._in_buf_size - len(self._in_buf))
+            # EDIT to allow passing in bytes from async task
+            bytes_in = data if data is not None else self._midi_in.read(self._in_buf_size - len(self._in_buf))
             if bytes_in:
                 if self._debug:
                     print("Receiving: ", [hex(i) for i in bytes_in])

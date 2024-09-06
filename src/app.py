@@ -18,6 +18,7 @@ from adafruit_midi.timing_clock import TimingClock
 from adafruit_midi.start import Start
 from adafruit_midi.stop import Stop
 
+import asyncio
 import os
 from machine import I2C
 from machine import I2S
@@ -25,6 +26,7 @@ from machine import Pin
 from machine import SDCard
 from machine import UART
 from sgtl5000 import CODEC
+from time import ticks_us
 
 from clock import MidiClock
 from control import joystick, rotary, rotary_pressed
@@ -54,8 +56,36 @@ SAMPLE_RATE_IN_HZ = 44100
 # ======= AUDIO CONFIGURATION =======
 
 # MIDI config
-RX_PIN = 28
-TX_PIN = 29
+midi_rx = Pin("D28", Pin.IN)
+# TX_PIN = Pin("D29", Pin.IN)
+
+async def midi_receive():
+    logger.info("midi hello")
+    sreader = asyncio.StreamReader(uart)
+    prev_step = None
+    while True:
+        data = await sreader.read(1)
+        ticks = ticks_us()
+        # logger.info(f"midi receive: got {data}")
+        msg = midi.receive(data)
+        # logger.info(f"midi hello {msg}")
+        if msg is not None:
+            if isinstance(msg, Start):
+                midi_clock.start()
+                started = True
+                _ = wav.seek(44)
+            if isinstance(msg, Stop):
+                midi_clock.stop()
+                started = False
+            if isinstance(msg, TimingClock):
+                # logger.info(f"midi hello {msg}")
+                step = midi_clock.process_clock(ticks)
+                if step is not None and not writing_audio:
+                    if prev_step:
+                        prev_step.cancel()
+                    prev_step = asyncio.create_task(play_step(step))
+        # await asyncio.sleep_ms(5)
+
 
 # https://docs.micropython.org/en/latest/mimxrt/pinout.html#mimxrt-uart-pinout
 # UART7 is pins 28, 29
@@ -131,84 +161,188 @@ gate = Gate()
 latch = Latch()
 rotary_position = rotary.value()
 current_sample = samples[rotary_position % len(samples)]
-try:
-    while True:
-        # if started:
-        #     num_read = wav.readinto(wav_samples_mv)
-        #     # end of WAV file?
-        #     if num_read == 0:
-        #         # end-of-file, advance to first byte of Data section
-        #         _ = wav.seek(44)
-        #     else:
-        #         _ = audio_out.write(wav_samples_mv[:num_read])
-        #         # pass
-        # else:
-        #     audio_out.write(zeros)
 
-        # if uart.any() > 0:
-        if rotary_position != rotary.value():
-            rotary_position = rotary.value()
-            current_sample = samples[rotary_position % len(samples)]
-            logger.info(f"rotary postiton {rotary_position} {rotary_pressed()}")
-            logger.info(f"switched to sample {current_sample.name}")
-        if uart.any():
-            msg = midi.receive()
-            if msg is not None:
-                if isinstance(msg, Start):
-                    midi_clock.start()
-                    started = True
-                    _ = wav.seek(44)
-                if isinstance(msg, Stop):
-                    midi_clock.stop()
-                    started = False
-                if isinstance(msg, TimingClock):
-                    step = midi_clock.process_clock()
-                    if step is not None:
-                        x, y = joystick.position()
-                        if x > 0.1:
-                            length = 4 if x > 0.9 else 2 if x > 0.5 else 1
-                            step = latch.get(step, length)
-                            if y < -0.5:
-                                latch.reps = 4
-                            elif y > 0.5:
-                                latch.reps = 2
-                            else:
-                                latch.reps = None
-                        else:
-                            latch.cancel()
-                        # logger.info(f"getting step {step}"
-                        chunk_samples = current_sample.get_chunk(step)
-                        # logger.info(f"playing samples for step {step}")
-                        rate = midi_clock.bpm / current_sample.bpm
-                        # logger.info(f"play rate for step {step} is {rate}")
-                        target_samples = round(current_sample.samples_per_chunk / rate)
-                        # logger.info(f"start write {step}")
-                        # TODO this is probably causing us to miss clocks since it takes ~20ms. think about this.
-                        # at 32nd notes this gate is kinda choppy nonsense. could work at meta level.
-                        gate.ratio = 1 if x > 0 else 1 + x
-                        gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
-                        on_steps = gate.ratio * gate.period
-                        play_step = step % gate.period <= on_steps
+writing_audio = False
+swriter = asyncio.StreamWriter(audio_out)
+async def play_step(step):
+    global writing_audio
+    if writing_audio:
+        return
+    x, y = joystick.position()
+    if x > 0.1:
+        length = 4 if x > 0.9 else 2 if x > 0.5 else 1
+        step = latch.get(step, length)
+        if y < -0.5:
+            latch.reps = 4
+        elif y > 0.5:
+            latch.reps = 2
+        else:
+            latch.reps = None
+    else:
+        latch.cancel()
+    # logger.info(f"getting step {step}"
+    chunk_samples = current_sample.get_chunk(step)
+    # logger.info(f"playing samples for step {step}")
+    rate = midi_clock.bpm / current_sample.bpm
+    # rate = 1
+    # logger.info(f"play rate for step {step} is {rate}")
+    target_samples = round(current_sample.samples_per_chunk / rate)
+    # logger.info(f"start write {step}")
+    # TODO this is probably causing us to miss clocks since it takes ~20ms. think about this.
+    # at 32nd notes this gate is kinda choppy nonsense. could work at meta level.
+    gate.ratio = 1 if x > 0 else 1 + x
+    gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
+    on_steps = gate.ratio * gate.period
+    play_step = step % gate.period <= on_steps
+
+    stretch_rate = 1
+    stretch_block_length = 0.1 # in seconds
+    stretch_block_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
+    samples_per_stretch_block = round(1 / stretch_rate * stretch_block_samples)
+
+    # writing_audio = True
+    i2s_chunk_size = 256
+    bytes_written = 0
+    # logger.info(f"{step} prewrite")
+    # for i in range(target_samples):
+    #     j = round(i * rate)
+    #     # if i / target_samples < gate:
+    #     # if play_step:
+    #     #     audio_out.write(chunk_samples[j * 4: j * 4 + 4])
+    #     # else:
+    #     #     audio_out.write(silence)
+    #     audio_data = chunk_samples[j * 4: j * 4 + 4] if play_step else silence
+    #     swriter.write(audio_data)
+    #     bytes_written += 4
+    #     if (bytes_written >= i2s_chunk_size):
+    #         # logger.info(f"{step} draining")
+    #         await swriter.drain()
+    #         bytes_written = 0
+    # logger.info(f"{step} postwrite")
+    # await swriter.drain()
+    samples_written = 0
+    prev_j = -1
+    for stretch_block_offset in range(0, target_samples, stretch_block_samples):
+        # logger.info(f"stretch block offset: {stretch_block_offset}")
+        for i in range(samples_per_stretch_block):
+            j = round(stretch_block_offset + i % stretch_block_samples * rate)
+            # logger.info(f"j: {j}")
+            # if j != prev_j + 1:
+            #     logger.info(f"j went from {prev_j} to {j}")
+            prev_j = j
+            audio_data = chunk_samples[j * 4: j * 4 + 4] if play_step else silence
+            swriter.write(audio_data)
+            bytes_written += 4
+            samples_written += 1
+            done = samples_written == target_samples
+            if (bytes_written >= i2s_chunk_size or done):
+                # logger.info(f"{step} draining")
+                await swriter.drain()
+                bytes_written = 0
+            if done:
+                break
+    # logger.info(f"{samples_written} vs target {target_samples}")
+    writing_audio = False
+    # logger.info(f"end write {step}")
+    # ret = audio_out.write(sampmles)
+    # logger.info(f"write returned {ret} for step {step}")
+    # logger.info(f"joystick {joystick.position()} {joystick.pressed()}")
 
 
-                        for i in range(target_samples):
-                            j = round(i * rate)
-                            # if i / target_samples < gate:
-                            if play_step:
-                                audio_out.write(chunk_samples[j * 4: j * 4 + 4])
-                            else:
-                                audio_out.write(silence)
-                        # logger.info(f"end write {step}")
-                        # ret = audio_out.write(sampmles)
-                        # logger.info(f"write returned {ret} for step {step}")
-                        logger.info(f"joystick {joystick.position()} {joystick.pressed()}")
 
-except (KeyboardInterrupt, Exception) as e:
-    print("caught exception {} {}".format(type(e).__name__, e))
 
-# cleanup
-wav.close()
-os.umount("/sd")
-sd.deinit()
-audio_out.deinit()
-print("Done")
+async def main():
+    global current_sample
+    asyncio.create_task(midi_receive())
+    rotary_position = rotary.value()
+    current_sample = samples[rotary_position % len(samples)]
+    try:
+        while True:
+            # does this need to be wrapped in another async task to be worth while..... ?????
+            await asyncio.sleep(0.1)
+            # if started:
+            #     num_read = wav.readinto(wav_samples_mv)
+            #     # end of WAV file?
+            #     if num_read == 0:
+            #         # end-of-file, advance to first byte of Data section
+            #         _ = wav.seek(44)
+            #     else:
+            #         _ = audio_out.write(wav_samples_mv[:num_read])
+            #         # pass
+            # else:
+            #     audio_out.write(zeros)
+
+            # if uart.any() > 0:
+            if rotary_position != rotary.value():
+                rotary_position = rotary.value()
+                current_sample = samples[rotary_position % len(samples)]
+                logger.info(f"rotary postiton {rotary_position} {rotary_pressed()}")
+                logger.info(f"switched to sample {current_sample.name}")
+            # if uart.any():
+            #     msg = midi.receive()
+            #     if msg is not None:
+            #         if isinstance(msg, Start):
+            #             midi_clock.start()
+            #             started = True
+            #             _ = wav.seek(44)
+            #         if isinstance(msg, Stop):
+            #             midi_clock.stop()
+            #             started = False
+            #         if isinstance(msg, TimingClock):
+            #             step = midi_clock.process_clock()
+            #             if step is not None:
+            #                 x, y = joystick.position()
+            #                 if x > 0.1:
+            #                     length = 4 if x > 0.9 else 2 if x > 0.5 else 1
+            #                     step = latch.get(step, length)
+            #                     if y < -0.5:
+            #                         latch.reps = 4
+            #                     elif y > 0.5:
+            #                         latch.reps = 2
+            #                     else:
+            #                         latch.reps = None
+            #                 else:
+            #                     latch.cancel()
+            #                 # logger.info(f"getting step {step}"
+            #                 chunk_samples = current_sample.get_chunk(step)
+            #                 # logger.info(f"playing samples for step {step}")
+            #                 rate = midi_clock.bpm / current_sample.bpm
+            #                 # logger.info(f"play rate for step {step} is {rate}")
+            #                 target_samples = round(current_sample.samples_per_chunk / rate)
+            #                 # logger.info(f"start write {step}")
+            #                 # TODO this is probably causing us to miss clocks since it takes ~20ms. think about this.
+            #                 # at 32nd notes this gate is kinda choppy nonsense. could work at meta level.
+            #                 gate.ratio = 1 if x > 0 else 1 + x
+            #                 gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
+            #                 on_steps = gate.ratio * gate.period
+            #                 play_step = step % gate.period <= on_steps
+
+            #                 stretch_rate = 0.5
+            #                 stretch_block_length = 0.040 # in seconds
+            #                 stretch_block_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
+            #                 samples_per_stretch_block = round(1 / stretch_rate * stretch_block_samples)
+
+            #                 for stretch_block_offset in range(0, target_samples, stretch_block_samples):
+            #                     for i in range(samples_per_stretch_block):
+            #                         j = round(stretch_block_offset + i % stretch_block_samples * rate)
+            #                         # if i / target_samples < gate:
+            #                         if play_step:
+            #                             audio_out.write(chunk_samples[j * 4: j * 4 + 4])
+            #                         else:
+            #                             audio_out.write(silence)
+            #                 # logger.info(f"end write {step}")
+            #                 # ret = audio_out.write(sampmles)
+            #                 # logger.info(f"write returned {ret} for step {step}")
+            #                 logger.info(f"joystick {joystick.position()} {joystick.pressed()}")
+
+    except (KeyboardInterrupt, Exception) as e:
+        print("caught exception {} {}".format(type(e).__name__, e))
+
+    # cleanup
+    wav.close()
+    os.umount("/sd")
+    sd.deinit()
+    audio_out.deinit()
+    print("Done")
+
+asyncio.run(main())
