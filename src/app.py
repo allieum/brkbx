@@ -13,6 +13,7 @@
 # - the write() method blocks until the entire sample buffer is written to the I2S interface
 #
 # requires a MicroPython driver for the SGTL5000 codec
+import time
 from adafruit_midi import MIDI
 from adafruit_midi.timing_clock import TimingClock
 from adafruit_midi.start import Start
@@ -26,7 +27,7 @@ from machine import Pin
 from machine import SDCard
 from machine import UART
 from sgtl5000 import CODEC
-from time import ticks_us
+from time import ticks_us, ticks_diff
 
 from clock import MidiClock
 from control import joystick, rotary, rotary_pressed
@@ -61,22 +62,24 @@ midi_rx = Pin("D28", Pin.IN)
 
 async def midi_receive():
     logger.info("midi hello")
+    uart = UART(7)
+    uart.init(31250, timeout=1, timeout_char=1)
     sreader = asyncio.StreamReader(uart)
     prev_step = None
+    i = 0
+    # TODO: can't handle multibyte messages, increasing buffer size delays receipt of TimingClock so keep it fixed for now
+    midi = MIDI(midi_in=sreader, midi_out=uart, in_buf_size=3)
     while True:
-        data = await sreader.read(1)
-        ticks = ticks_us()
+        # data = await sreader.read(3)
+        # logger.info(f"after await: {uart.any()}, data length {len(data)}")
         # logger.info(f"midi receive: got {data}")
-        msg = midi.receive(data)
+        # msg = midi.receive(data)
         # logger.info(f"midi hello {msg}")
-        if msg is not None:
-            if isinstance(msg, Start):
-                midi_clock.start()
-                started = True
-                _ = wav.seek(44)
-            if isinstance(msg, Stop):
-                midi_clock.stop()
-                started = False
+        msgs = await midi.receive()
+        # logger.info(f"after await: {uart.any()}")
+        ticks = ticks_us()
+        for msg in msgs:
+            # logger.info(f"{i} message {msg}")
             if isinstance(msg, TimingClock):
                 # logger.info(f"midi hello {msg}")
                 step = midi_clock.process_clock(ticks)
@@ -84,16 +87,20 @@ async def midi_receive():
                     if prev_step:
                         prev_step.cancel()
                     prev_step = asyncio.create_task(play_step(step))
+            elif isinstance(msg, Start):
+                midi_clock.start()
+                started = True
+                _ = wav.seek(44)
+            elif isinstance(msg, Stop):
+                midi_clock.stop()
+                started = False
+        i += 1
         # await asyncio.sleep_ms(5)
 
 
 # https://docs.micropython.org/en/latest/mimxrt/pinout.html#mimxrt-uart-pinout
 # UART7 is pins 28, 29
-uart = UART(7)
-uart.init(31250, timeout=1, timeout_char=1)
 
-# TODO: can't handle multibyte messages, increasing buffer size delays receipt of TimingClock so keep it fixed for now
-midi = MIDI(midi_in=uart, midi_out=uart, in_buf_size=1)
 
 audio_out = I2S(
     I2S_ID,
@@ -164,10 +171,14 @@ current_sample = samples[rotary_position % len(samples)]
 
 writing_audio = False
 swriter = asyncio.StreamWriter(audio_out)
+last_step = ticks_us()
 async def play_step(step):
-    global writing_audio
+    global writing_audio, last_step
     if writing_audio:
         return
+    ticks = ticks_us()
+    # logger.info(f"{ticks_diff(ticks, last_step) / 1000000}")
+    last_step = ticks
     x, y = joystick.position()
     if x > 0.1:
         length = 4 if x > 0.9 else 2 if x > 0.5 else 1
@@ -183,8 +194,8 @@ async def play_step(step):
     # logger.info(f"getting step {step}"
     chunk_samples = current_sample.get_chunk(step)
     # logger.info(f"playing samples for step {step}")
-    rate = midi_clock.bpm / current_sample.bpm
-    # rate = 1
+    # rate = midi_clock.bpm / current_sample.bpm
+    rate = 1
     # logger.info(f"play rate for step {step} is {rate}")
     target_samples = round(current_sample.samples_per_chunk / rate)
     # logger.info(f"start write {step}")
@@ -195,13 +206,14 @@ async def play_step(step):
     on_steps = gate.ratio * gate.period
     play_step = step % gate.period <= on_steps
 
-    stretch_rate = 1
-    stretch_block_length = 0.1 # in seconds
+    # stretch_rate = 1
+    stretch_rate = midi_clock.bpm / current_sample.bpm
+    stretch_block_length = 0.030 # in seconds
     stretch_block_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
     samples_per_stretch_block = round(1 / stretch_rate * stretch_block_samples)
 
     # writing_audio = True
-    i2s_chunk_size = 256
+    i2s_chunk_size = 512
     bytes_written = 0
     # logger.info(f"{step} prewrite")
     # for i in range(target_samples):
@@ -222,6 +234,8 @@ async def play_step(step):
     # await swriter.drain()
     samples_written = 0
     prev_j = -1
+    # logger.info(f"starting write step {step}")
+    write_begin = time.ticks_us()
     for stretch_block_offset in range(0, target_samples, stretch_block_samples):
         # logger.info(f"stretch block offset: {stretch_block_offset}")
         for i in range(samples_per_stretch_block):
@@ -236,8 +250,11 @@ async def play_step(step):
             samples_written += 1
             done = samples_written == target_samples
             if (bytes_written >= i2s_chunk_size or done):
-                # logger.info(f"{step} draining")
+                # logger.info(f"{step} draining, write took {ticks_diff(ticks_us(), write_begin) / 1000000}")
                 await swriter.drain()
+                # could arrange this so we can be preparing new samples while this is draining? separate task?
+                # logger.info(f"{step} drained")
+                write_begin = ticks_us()
                 bytes_written = 0
             if done:
                 break

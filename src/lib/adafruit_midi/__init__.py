@@ -114,7 +114,7 @@ class MIDI:
             raise RuntimeError("Invalid output channel")
         self._out_channel = channel
 
-    def receive(self, data = None) -> Optional[MIDIMessage]:
+    async def receive(self, data = None) -> List[MIDIMessage]:
         """Read messages from MIDI port, store them in internal read buffer, then parse that data
         and return the first MIDI message (event).
         This maintains the blocking characteristics of the midi_in port.
@@ -126,13 +126,15 @@ class MIDI:
         # the input port
         if len(self._in_buf) < self._in_buf_size:
             # EDIT to allow passing in bytes from async task
-            bytes_in = data if data is not None else self._midi_in.read(self._in_buf_size - len(self._in_buf))
+            # bytes_in = data if data is not None else self._midi_in.read(self._in_buf_size - len(self._in_buf))
+            bytes_in = await self._midi_in.read(self._in_buf_size - len(self._in_buf))
             if bytes_in:
                 if self._debug:
                     print("Receiving: ", [hex(i) for i in bytes_in])
                 self._in_buf.extend(bytes_in)
                 del bytes_in
 
+        msgs = []
         (msg, endplusone, skipped) = MIDIMessage.from_message_bytes(
             self._in_buf, self._in_channel
         )
@@ -142,9 +144,24 @@ class MIDI:
             self._in_buf = self._in_buf[endplusone:]
 
         self._skipped_bytes += skipped
+        if msg is not None:
+            msgs.append(msg)
+
+        while msg is not None:
+            (msg, endplusone, skipped) = MIDIMessage.from_message_bytes(
+                self._in_buf, self._in_channel
+            )
+            if endplusone != 0:
+                # This is not particularly efficient as it's copying most of bytearray
+                # and deleting old one
+                self._in_buf = self._in_buf[endplusone:]
+
+            self._skipped_bytes += skipped
+            if msg is not None:
+                msgs.append(msg)
 
         # msg could still be None at this point, e.g. in middle of monster SysEx
-        return msg
+        return msgs
 
     def send(self, msg: MIDIMessage, channel: Optional[int] = None) -> None:
         """Sends a MIDI message.
