@@ -17,6 +17,7 @@ class MidiClock:
         self.bpm = 143
         self.clock_buffer = deque([0], 24)
         self.prev_ticks = None
+        self.start_ticks = None
 
     def start(self):
         """ proceess midi start message """
@@ -27,6 +28,7 @@ class MidiClock:
         self.last_clock_ticks = 0
         self.last_step_ticks = 0
         self.prev_ticks = None
+        self.start_ticks = None
         # self.prev_ticks = ticks_us()
 
     def stop(self):
@@ -72,6 +74,8 @@ class MidiClock:
         #     self.bpm = bpm
         # logger.info(f"secs per clock: {secs_per_tick}")
         # self.last_clock_ticks = ticks
+        if self.start_ticks is None:
+            self.start_ticks = ticks
         new_position = None
         if self.play_mode and self.clock_count % 3 == 0:
             self.song_position += 1
@@ -87,6 +91,12 @@ class MidiClock:
             #     self.bpm = bpm
                 # logger.debug(f"bpm changed to {bpm}")
             new_position = self.song_position
+            predicted_ticks = round(self.clock_count / 24 / self.bpm * 60 * 1000000)
+            actual_ticks = ticks_diff(ticks, self.start_ticks)
+            # logger.info(f"predicted {predicted_ticks}, actual {actual_ticks}")
+            lag = ticks_diff(predicted_ticks, actual_ticks) / 1000000
+            if lag < 0:
+                logger.info(f"lag is {ticks_diff(predicted_ticks, actual_ticks) / 1000000}")
         if self.clock_count % self.BPM_INTERVAL == 0:
             bpm = self.update_bpm(self.song_position, ticks)
             if bpm != 0 and bpm != self.bpm:

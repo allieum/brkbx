@@ -195,9 +195,17 @@ async def play_step(step):
     chunk_samples = current_sample.get_chunk(step)
     # logger.info(f"playing samples for step {step}")
     # rate = midi_clock.bpm / current_sample.bpm
-    rate = 1
+    # stretch_rate = 1
+    stretch_rate = midi_clock.bpm / current_sample.bpm
+    stretch_block_length = 0.030 # in seconds
+    stretch_block_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
+    samples_per_stretch_block = round(1 / stretch_rate * stretch_block_samples)
+    pitch_rate = 1
     # logger.info(f"play rate for step {step} is {rate}")
-    target_samples = round(current_sample.samples_per_chunk / rate)
+    effective_rate = stretch_rate * pitch_rate
+    pitched_samples = round(current_sample.samples_per_chunk / pitch_rate)
+    target_samples = round(current_sample.samples_per_chunk / effective_rate)
+
     # logger.info(f"start write {step}")
     # TODO this is probably causing us to miss clocks since it takes ~20ms. think about this.
     # at 32nd notes this gate is kinda choppy nonsense. could work at meta level.
@@ -205,12 +213,6 @@ async def play_step(step):
     gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
     on_steps = gate.ratio * gate.period
     play_step = step % gate.period <= on_steps
-
-    # stretch_rate = 1
-    stretch_rate = midi_clock.bpm / current_sample.bpm
-    stretch_block_length = 0.030 # in seconds
-    stretch_block_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
-    samples_per_stretch_block = round(1 / stretch_rate * stretch_block_samples)
 
     # writing_audio = True
     i2s_chunk_size = 512
@@ -236,10 +238,10 @@ async def play_step(step):
     prev_j = -1
     # logger.info(f"starting write step {step}")
     write_begin = time.ticks_us()
-    for stretch_block_offset in range(0, target_samples, stretch_block_samples):
+    for stretch_block_offset in range(0, pitched_samples, stretch_block_samples):
         # logger.info(f"stretch block offset: {stretch_block_offset}")
         for i in range(samples_per_stretch_block):
-            j = round(stretch_block_offset + i % stretch_block_samples * rate)
+            j = round(stretch_block_offset + i % stretch_block_samples * pitch_rate)
             # logger.info(f"j: {j}")
             # if j != prev_j + 1:
             #     logger.info(f"j went from {prev_j} to {j}")
