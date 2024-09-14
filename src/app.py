@@ -13,6 +13,7 @@
 # - the write() method blocks until the entire sample buffer is written to the I2S interface
 #
 # requires a MicroPython driver for the SGTL5000 codec
+import math
 import time
 from adafruit_midi import MIDI
 from adafruit_midi.timing_clock import TimingClock
@@ -90,7 +91,6 @@ async def midi_receive():
             elif isinstance(msg, Start):
                 midi_clock.start()
                 started = True
-                _ = wav.seek(44)
             elif isinstance(msg, Stop):
                 midi_clock.stop()
                 started = False
@@ -139,14 +139,14 @@ codec.adc_high_pass_filter(enable=False)
 codec.audio_processor(enable=False)
 
 samples = load_samples("/sd/samples")
-wav = open("/sd/{}".format(WAV_FILE), "rb")
-# TODO: 44 is not safe assumption, could parse file, see https://stackoverflow.com/questions/19991405/how-can-i-detect-whether-a-wav-file-has-a-44-or-46-byte-header
-_ = wav.seek(44)  # advance to first byte of Data section in WAV file
+# wav = open("/sd/{}".format(WAV_FILE), "rb")
+# # TODO: 44 is not safe assumption, could parse file, see https://stackoverflow.com/questions/19991405/how-can-i-detect-whether-a-wav-file-has-a-44-or-46-byte-header
+# _ = wav.seek(44)  # advance to first byte of Data section in WAV file
 
-# allocate sample array
-# memoryview used to reduce heap allocation
-wav_samples = bytearray(1000)
-wav_samples_mv = memoryview(wav_samples)
+# # allocate sample array
+# # memoryview used to reduce heap allocation
+# wav_samples = bytearray(1000)
+# wav_samples_mv = memoryview(wav_samples)
 
 # continuously read audio samples from the WAV file
 # and write them to an I2S DAC
@@ -197,7 +197,7 @@ async def play_step(step):
     # rate = midi_clock.bpm / current_sample.bpm
     # stretch_rate = 1
     stretch_rate = midi_clock.bpm / current_sample.bpm
-    stretch_block_length = 0.030 # in seconds
+    stretch_block_length = 0.060 # in seconds
     stretch_block_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
     samples_per_stretch_block = round(1 / stretch_rate * stretch_block_samples)
     pitch_rate = 1
@@ -238,16 +238,33 @@ async def play_step(step):
     prev_j = -1
     # logger.info(f"starting write step {step}")
     write_begin = time.ticks_us()
+    FADE_SAMPLES = 10
     for stretch_block_offset in range(0, pitched_samples, stretch_block_samples):
         # logger.info(f"stretch block offset: {stretch_block_offset}")
         for i in range(samples_per_stretch_block):
-            j = round(stretch_block_offset + i % stretch_block_samples * pitch_rate)
+            block_i = i % stretch_block_samples
+            j = round(stretch_block_offset + block_i * pitch_rate)
+            fadein_factor = FADE_SAMPLES - block_i
+            fadeout_factor = block_i - (stretch_block_samples - FADE_SAMPLES)
+            gain = 1
+            # next: record to visualize data, might be missing end fade
+            if fadein_factor > 0:
+                gain = 1 / fadein_factor
+            if fadeout_factor > 0:
+                gain = 1 / fadeout_factor
             # logger.info(f"j: {j}")
             # if j != prev_j + 1:
             #     logger.info(f"j went from {prev_j} to {j}")
             prev_j = j
             audio_data = chunk_samples[j * 4: j * 4 + 4] if play_step else silence
-            swriter.write(audio_data)
+            if gain != 1:
+                for k in range(0, len(audio_data), 2):
+                    val = int.from_bytes(audio_data[k:k + 2], "little")
+                    newval = math.floor(val * gain)
+                    sb = bytes([newval &0xff, (newval >> 8) & 0xff])
+                    swriter.write(sb)
+            else:
+                swriter.write(audio_data)
             bytes_written += 4
             samples_written += 1
             done = samples_written == target_samples
