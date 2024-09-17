@@ -172,6 +172,8 @@ current_sample = samples[rotary_position % len(samples)]
 writing_audio = False
 swriter = asyncio.StreamWriter(audio_out)
 last_step = ticks_us()
+audio_out_buffer = bytearray(44100)
+audio_out_mv = memoryview(audio_out_buffer)
 async def play_step(step):
     global writing_audio, last_step
     if writing_audio:
@@ -195,12 +197,13 @@ async def play_step(step):
     chunk_samples = current_sample.get_chunk(step)
     # logger.info(f"playing samples for step {step}")
     # rate = midi_clock.bpm / current_sample.bpm
-    # stretch_rate = 1
-    stretch_rate = midi_clock.bpm / current_sample.bpm
+    stretch_rate = 1
+    # stretch_rate = midi_clock.bpm / current_sample.bpm
     stretch_block_length = 0.060 # in seconds
     stretch_block_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
     samples_per_stretch_block = round(1 / stretch_rate * stretch_block_samples)
-    pitch_rate = 1
+    # pitch_rate = 1
+    pitch_rate = midi_clock.bpm / current_sample.bpm
     # logger.info(f"play rate for step {step} is {rate}")
     effective_rate = stretch_rate * pitch_rate
     pitched_samples = round(current_sample.samples_per_chunk / pitch_rate)
@@ -216,7 +219,9 @@ async def play_step(step):
 
     # writing_audio = True
     i2s_chunk_size = 512
+    # i2s_chunk_size = current_sample.samples_per_chunk * 4
     bytes_written = 0
+    # logger.info(f"writing in chunks of length {i2s_chunk_size / 4 / 44100}s")
     # logger.info(f"{step} prewrite")
     # for i in range(target_samples):
     #     j = round(i * rate)
@@ -234,6 +239,13 @@ async def play_step(step):
     #         bytes_written = 0
     # logger.info(f"{step} postwrite")
     # await swriter.drain()
+    #
+    #
+
+# NEW ARCHITECTURE:
+# one task writes as fast as possible, another prepares steps in advance
+# keeping the buffer full
+
     samples_written = 0
     prev_j = -1
     # logger.info(f"starting write step {step}")
@@ -252,6 +264,7 @@ async def play_step(step):
                 gain = 1 / fadein_factor
             if fadeout_factor > 0:
                 gain = 1 / fadeout_factor
+            gain = 1
             # logger.info(f"j: {j}")
             # if j != prev_j + 1:
             #     logger.info(f"j went from {prev_j} to {j}")
@@ -264,13 +277,20 @@ async def play_step(step):
                     sb = bytes([newval &0xff, (newval >> 8) & 0xff])
                     swriter.write(sb)
             else:
-                swriter.write(audio_data)
+                # swriter.write(audio_data)
+                for i in range(4):
+                    audio_out_buffer[bytes_written + i] = audio_data[i]
             bytes_written += 4
             samples_written += 1
             done = samples_written == target_samples
             if (bytes_written >= i2s_chunk_size or done):
-                # logger.info(f"{step} draining, write took {ticks_diff(ticks_us(), write_begin) / 1000000}")
+                audio_len = bytes_written / 4 / 44100
+                swriter.out_buf = audio_out_mv[:bytes_written]
+                # swriter.write(audio_out_mv[:bytes_written])
+                before_drain = ticks_us()
+                # logger.info(f"{step} draining, preparing {audio_len}s took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
                 await swriter.drain()
+                # logger.info(f"paused for {ticks_diff(ticks_us(), before_drain) / 1000000}s")
                 # could arrange this so we can be preparing new samples while this is draining? separate task?
                 # logger.info(f"{step} drained")
                 write_begin = ticks_us()
@@ -283,6 +303,11 @@ async def play_step(step):
     # ret = audio_out.write(sampmles)
     # logger.info(f"write returned {ret} for step {step}")
     # logger.info(f"joystick {joystick.position()} {joystick.pressed()}")
+async def write_audio():
+    while True:
+        pass
+        # keep last write index, detect when it goes lower and assume 0
+
 
 
 
