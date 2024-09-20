@@ -96,7 +96,8 @@ class MidiClock:
             # logger.info(f"predicted {predicted_ticks}, actual {actual_ticks}")
             lag = ticks_diff(predicted_ticks, actual_ticks) / 1000000
             if lag < 0:
-                logger.info(f"lag is {ticks_diff(predicted_ticks, actual_ticks) / 1000000}")
+                pass
+                # logger.info(f"lag is {ticks_diff(predicted_ticks, actual_ticks) / 1000000}")
         if self.clock_count % self.BPM_INTERVAL == 0:
             bpm = self.update_bpm(self.song_position, ticks)
             if bpm != 0 and bpm != self.bpm:

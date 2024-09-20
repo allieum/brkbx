@@ -53,7 +53,7 @@ BUFFER_LENGTH_IN_BYTES = 40000
 # ======= AUDIO CONFIGURATION =======
 WAV_FILE = "think.wav"
 WAV_SAMPLE_SIZE_IN_BITS = 16
-FORMAT = I2S.STEREO
+FORMAT = I2S.MONO
 SAMPLE_RATE_IN_HZ = 44100
 # ======= AUDIO CONFIGURATION =======
 
@@ -153,7 +153,7 @@ samples = load_samples("/sd/samples")
 logger.info("==========  START PLAYBACK ==========")
 started = False
 
-silence = bytearray(0 for _ in range(4))
+silence = bytearray(0 for _ in range(2))
 # def i2s_irq(i2s):
 #     logger.warning("irq triggered")
 # audio_out.irq(i2s_irq)
@@ -174,8 +174,9 @@ swriter = asyncio.StreamWriter(audio_out)
 last_step = ticks_us()
 audio_out_buffer = bytearray(44100)
 audio_out_mv = memoryview(audio_out_buffer)
+bytes_written = 0
 async def play_step(step):
-    global writing_audio, last_step
+    global writing_audio, last_step, bytes_written
     if writing_audio:
         return
     ticks = ticks_us()
@@ -247,6 +248,7 @@ async def play_step(step):
 # keeping the buffer full
 
     samples_written = 0
+    last_write = 0
     prev_j = -1
     # logger.info(f"starting write step {step}")
     write_begin = time.ticks_us()
@@ -256,45 +258,50 @@ async def play_step(step):
         for i in range(samples_per_stretch_block):
             block_i = i % stretch_block_samples
             j = round(stretch_block_offset + block_i * pitch_rate)
-            fadein_factor = FADE_SAMPLES - block_i
-            fadeout_factor = block_i - (stretch_block_samples - FADE_SAMPLES)
-            gain = 1
-            # next: record to visualize data, might be missing end fade
-            if fadein_factor > 0:
-                gain = 1 / fadein_factor
-            if fadeout_factor > 0:
-                gain = 1 / fadeout_factor
-            gain = 1
-            # logger.info(f"j: {j}")
-            # if j != prev_j + 1:
-            #     logger.info(f"j went from {prev_j} to {j}")
-            prev_j = j
-            audio_data = chunk_samples[j * 4: j * 4 + 4] if play_step else silence
-            if gain != 1:
-                for k in range(0, len(audio_data), 2):
-                    val = int.from_bytes(audio_data[k:k + 2], "little")
-                    newval = math.floor(val * gain)
-                    sb = bytes([newval &0xff, (newval >> 8) & 0xff])
-                    swriter.write(sb)
-            else:
-                # swriter.write(audio_data)
-                for i in range(4):
-                    audio_out_buffer[bytes_written + i] = audio_data[i]
-            bytes_written += 4
+            # fadein_factor = FADE_SAMPLES - block_i
+            # fadeout_factor = block_i - (stretch_block_samples - FADE_SAMPLES)
+            # gain = 1
+            # # next: record to visualize data, might be missing end fade
+            # if fadein_factor > 0:
+            #     gain = 1 / fadein_factor
+            # if fadeout_factor > 0:
+            #     gain = 1 / fadeout_factor
+            # gain = 1
+            # # logger.info(f"j: {j}")
+            # # if j != prev_j + 1:
+            # #     logger.info(f"j went from {prev_j} to {j}")
+            # prev_j = j
+            audio_data = chunk_samples[j * 2: j * 2 + 2] if play_step else silence
+            # if gain != 1:
+            #     for k in range(0, len(audio_data), 2):
+            #         val = int.from_bytes(audio_data[k:k + 2], "little")
+            #         newval = math.floor(val * gain)
+            #         sb = bytes([newval &0xff, (newval >> 8) & 0xff])
+            #         swriter.write(sb)
+            # else:
+            #     # swriter.write(audio_data)
+            for i in range(2):
+                audio_out_buffer[bytes_written + i] = audio_data[i]
+            bytes_written += 2
             samples_written += 1
             done = samples_written == target_samples
-            if (bytes_written >= i2s_chunk_size or done):
-                audio_len = bytes_written / 4 / 44100
-                swriter.out_buf = audio_out_mv[:bytes_written]
-                # swriter.write(audio_out_mv[:bytes_written])
-                before_drain = ticks_us()
-                # logger.info(f"{step} draining, preparing {audio_len}s took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
-                await swriter.drain()
+            if (bytes_written - last_write >= i2s_chunk_size or done):
+                # next: switch to 22050 squeeze out the juiiiiice
+                audio_len = (bytes_written - last_write) / 2 / 44100
+                logger.info(f"{step} pausing {bytes_written}, preparing {audio_len}s took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
+                asyncio.create_task(write_audio(last_write, bytes_written))
+                await asyncio.sleep(0)
+                logger.info(f"{step} unpausing")
+                # swriter.out_buf = audio_out_mv[:bytes_written]
+                # # swriter.write(audio_out_mv[:bytes_written])
+                # before_drain = ticks_us()
+                # await swriter.drain()
                 # logger.info(f"paused for {ticks_diff(ticks_us(), before_drain) / 1000000}s")
                 # could arrange this so we can be preparing new samples while this is draining? separate task?
                 # logger.info(f"{step} drained")
                 write_begin = ticks_us()
-                bytes_written = 0
+                last_write = bytes_written
+                # i2s_chunk_size = 512
             if done:
                 break
     # logger.info(f"{samples_written} vs target {target_samples}")
@@ -303,10 +310,16 @@ async def play_step(step):
     # ret = audio_out.write(sampmles)
     # logger.info(f"write returned {ret} for step {step}")
     # logger.info(f"joystick {joystick.position()} {joystick.pressed()}")
-async def write_audio():
-    while True:
-        pass
-        # keep last write index, detect when it goes lower and assume 0
+async def write_audio(start, end):
+    # swriter.out_buf = audio_out_mv[last_write: bytes_written]
+    logger.info(f"write_audio {start}:{end}")
+    swriter.out_buf = audio_out_mv[start:end]
+# else:
+#     swriter.out_buf = silence
+    # last_write = bytes_written
+    await swriter.drain()
+    logger.info(f"bytes written {start}:{end}")
+# keep last write index, detect when it goes lower and assume 0
 
 
 
@@ -394,16 +407,16 @@ async def main():
             #                 # logger.info(f"end write {step}")
             #                 # ret = audio_out.write(sampmles)
             #                 # logger.info(f"write returned {ret} for step {step}")
-            #                 logger.info(f"joystick {joystick.position()} {joystick.pressed()}")
+                #                 logger.info(f"joystick {joystick.position()} {joystick.pressed()}")
 
     except (KeyboardInterrupt, Exception) as e:
         print("caught exception {} {}".format(type(e).__name__, e))
 
     # cleanup
-    wav.close()
-    os.umount("/sd")
-    sd.deinit()
-    audio_out.deinit()
-    print("Done")
+# wav.close()
+        os.umount("/sd")
+        sd.deinit()
+        audio_out.deinit()
+        print("Done")
 
 asyncio.run(main())

@@ -33,7 +33,7 @@ def find_wav_data(wav_file) -> Tuple[int, int]:
         wav_file.seek(chunk_size, 1)
 
 # NOTE: could read the fmt chunk to validate these, for now just assume
-CHANNELS = 2
+CHANNELS = 1
 BYTES_PER_SAMPLE = 2
 SAMPLE_RATE = 44100
 CHUNKS = 32
@@ -41,6 +41,7 @@ CHUNKS = 32
 
 class Sample:
     def __init__(self, wav_filename: str):
+        logger.info(wav_filename)
         self.wav_file = open(wav_filename, "rb")
         self.wav_offset, self.wav_size = find_wav_data(self.wav_file)
         self.name = wav_filename
@@ -73,4 +74,4 @@ class Sample:
 
 def load_samples(folder: str) -> List[Sample]:
     files = sorted(os.listdir(folder))
-    return [Sample(f"{folder}/{wav}") for wav in files]
+    return [Sample(f"{folder}/{wav}") for wav in files if ".wav" in wav]
