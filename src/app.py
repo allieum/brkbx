@@ -70,15 +70,19 @@ async def midi_receive():
     i = 0
     # TODO: can't handle multibyte messages, increasing buffer size delays receipt of TimingClock so keep it fixed for now
     midi = MIDI(midi_in=sreader, midi_out=uart, in_buf_size=3)
+    ticks = 0
     while True:
         # data = await sreader.read(3)
         # logger.info(f"after await: {uart.any()}, data length {len(data)}")
         # logger.info(f"midi receive: got {data}")
         # msg = midi.receive(data)
         # logger.info(f"midi hello {msg}")
+        # logger.info(f"midi_receive spent {ticks_diff(ticks_us(), ticks) / 1000000}s")
         msgs = await midi.receive()
         # logger.info(f"after await: {uart.any()}")
         ticks = ticks_us()
+        # if len(msgs) > 1:
+        #     logger.info(f"got {len(msgs)} midi messages")
         for msg in msgs:
             # logger.info(f"{i} message {msg}")
             if isinstance(msg, TimingClock):
@@ -94,6 +98,7 @@ async def midi_receive():
             elif isinstance(msg, Stop):
                 midi_clock.stop()
                 started = False
+            # await asyncio.sleep(0)
         i += 1
         # await asyncio.sleep_ms(5)
 
@@ -183,7 +188,7 @@ async def play_step(step):
     # logger.info(f"{ticks_diff(ticks, last_step) / 1000000}")
     last_step = ticks
     x, y = joystick.position()
-    if x > 0.1:
+    if x > 0.2:
         length = 4 if x > 0.9 else 2 if x > 0.5 else 1
         step = latch.get(step, length)
         if y < -0.5:
@@ -219,7 +224,7 @@ async def play_step(step):
     play_step = step % gate.period <= on_steps
 
     # writing_audio = True
-    i2s_chunk_size = 512
+    i2s_chunk_size = 1024
     # i2s_chunk_size = current_sample.samples_per_chunk * 4
     bytes_written = 0
     # logger.info(f"writing in chunks of length {i2s_chunk_size / 4 / 44100}s")
@@ -248,16 +253,18 @@ async def play_step(step):
 # keeping the buffer full
 
     samples_written = 0
-    last_write = 0
+    last_write_index = 0
     prev_j = -1
     # logger.info(f"starting write step {step}")
     write_begin = time.ticks_us()
     FADE_SAMPLES = 10
+    prev_length = None
+    prev_write = write_begin
     for stretch_block_offset in range(0, pitched_samples, stretch_block_samples):
         # logger.info(f"stretch block offset: {stretch_block_offset}")
         for i in range(samples_per_stretch_block):
             block_i = i % stretch_block_samples
-            j = round(stretch_block_offset + block_i * pitch_rate)
+            j = round((stretch_block_offset + block_i) * pitch_rate)
             # fadein_factor = FADE_SAMPLES - block_i
             # fadeout_factor = block_i - (stretch_block_samples - FADE_SAMPLES)
             # gain = 1
@@ -285,13 +292,22 @@ async def play_step(step):
             bytes_written += 2
             samples_written += 1
             done = samples_written == target_samples
-            if (bytes_written - last_write >= i2s_chunk_size or done):
+            if (bytes_written - last_write_index >= i2s_chunk_size or done):
                 # next: switch to 22050 squeeze out the juiiiiice
-                audio_len = (bytes_written - last_write) / 2 / 44100
-                logger.info(f"{step} pausing {bytes_written}, preparing {audio_len}s took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
-                asyncio.create_task(write_audio(last_write, bytes_written))
+                audio_len = (bytes_written - last_write_index) / 2 / 44100
+                now = time.ticks_us()
+                # logger.info(f"{step} pausing {bytes_written}, preparing {audio_len}s took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
+                elapsed = ticks_diff(now, prev_write) / 1000000
+                # logger.info(f"{step} prepared {prev_length}s of audio {elapsed}s ago")
+                if prev_length and elapsed > prev_length:
+                    logger.warning(f"lagging behind audio buffer by {elapsed - prev_length}s")
+                prev_length = audio_len
+                prev_write = now
+                asyncio.create_task(write_audio(last_write_index, bytes_written))
+                # swriter.out_buf = audio_out_mv[last_write_index: bytes_written]
+                # await swriter.drain()
                 await asyncio.sleep(0)
-                logger.info(f"{step} unpausing")
+                # logger.info(f"{step} unpausing")
                 # swriter.out_buf = audio_out_mv[:bytes_written]
                 # # swriter.write(audio_out_mv[:bytes_written])
                 # before_drain = ticks_us()
@@ -300,7 +316,7 @@ async def play_step(step):
                 # could arrange this so we can be preparing new samples while this is draining? separate task?
                 # logger.info(f"{step} drained")
                 write_begin = ticks_us()
-                last_write = bytes_written
+                last_write_index = bytes_written
                 # i2s_chunk_size = 512
             if done:
                 break
@@ -312,13 +328,13 @@ async def play_step(step):
     # logger.info(f"joystick {joystick.position()} {joystick.pressed()}")
 async def write_audio(start, end):
     # swriter.out_buf = audio_out_mv[last_write: bytes_written]
-    logger.info(f"write_audio {start}:{end}")
+    # logger.info(f"write_audio {start}:{end}")
     swriter.out_buf = audio_out_mv[start:end]
 # else:
 #     swriter.out_buf = silence
     # last_write = bytes_written
     await swriter.drain()
-    logger.info(f"bytes written {start}:{end}")
+    # logger.info(f"bytes written {start}:{end}")
 # keep last write index, detect when it goes lower and assume 0
 
 
