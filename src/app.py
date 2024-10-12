@@ -205,8 +205,11 @@ async def play_step(step):
     # rate = midi_clock.bpm / current_sample.bpm
     stretch_rate = 1
     # stretch_rate = midi_clock.bpm / current_sample.bpm
-    stretch_block_length = 0.060 # in seconds
+    stretch_block_length = 0.030 # in seconds
     stretch_block_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
+    if stretch_block_samples > current_sample.samples_per_chunk:
+        logger.warning(f"stretch block bigger than sample chunk {stretch_block_samples} vs {current_sample.samples_per_chunk}, using smaller")
+        stretch_block_samples = current_sample.samples_per_chunk
     samples_per_stretch_block = round(1 / stretch_rate * stretch_block_samples)
     # pitch_rate = 1
     pitch_rate = midi_clock.bpm / current_sample.bpm
@@ -263,7 +266,7 @@ async def play_step(step):
     for stretch_block_offset in range(0, pitched_samples, stretch_block_samples):
         # logger.info(f"stretch block offset: {stretch_block_offset}")
         for i in range(samples_per_stretch_block):
-            block_i = i % stretch_block_samples
+            block_i = i % min(stretch_block_samples, current_sample.samples_per_chunk - stretch_block_offset)
             j = round((stretch_block_offset + block_i) * pitch_rate)
             # fadein_factor = FADE_SAMPLES - block_i
             # fadeout_factor = block_i - (stretch_block_samples - FADE_SAMPLES)
@@ -287,7 +290,9 @@ async def play_step(step):
             #         swriter.write(sb)
             # else:
             #     # swriter.write(audio_data)
-            for i in range(2):
+            if len(audio_data) < 2:
+                logger.warning(f"invalid data {list(audio_data)} j={j} i={i} {len(chunk_samples)} {samples_per_stretch_block} {stretch_block_samples}")
+            for i in range(len(audio_data)):
                 audio_out_buffer[bytes_written + i] = audio_data[i]
             bytes_written += 2
             samples_written += 1
@@ -303,10 +308,10 @@ async def play_step(step):
                     logger.warning(f"lagging behind audio buffer by {elapsed - prev_length}s")
                 prev_length = audio_len
                 prev_write = now
-                asyncio.create_task(write_audio(last_write_index, bytes_written))
-                # swriter.out_buf = audio_out_mv[last_write_index: bytes_written]
-                # await swriter.drain()
-                await asyncio.sleep(0)
+                # asyncio.create_task(write_audio(last_write_index, bytes_written))
+                swriter.out_buf = audio_out_mv[last_write_index: bytes_written]
+                await swriter.drain()
+                # await asyncio.sleep(0)
                 # logger.info(f"{step} unpausing")
                 # swriter.out_buf = audio_out_mv[:bytes_written]
                 # # swriter.write(audio_out_mv[:bytes_written])
@@ -317,7 +322,7 @@ async def play_step(step):
                 # logger.info(f"{step} drained")
                 write_begin = ticks_us()
                 last_write_index = bytes_written
-                # i2s_chunk_size = 512
+                # i2s_chunk_size *= 2
             if done:
                 break
     # logger.info(f"{samples_written} vs target {target_samples}")
@@ -435,4 +440,13 @@ async def main():
         audio_out.deinit()
         print("Done")
 
-asyncio.run(main())
+def run():
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, Exception) as e:
+        print("caught exception {} {}".format(type(e).__name__, e))
+    finally:
+        logger.error(f"interrupted")
+        # run()
+
+run()
