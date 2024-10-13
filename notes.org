@@ -2,7 +2,10 @@
 
 
 
-
+* ideas!
+** joystick recording: when no input, loop the last n bars of input
+** click joystick to change modes, each of which modifies "step params" in a generic way
+*** could use step params to implement recording
 
 * deferred matters
 ** auto code formatting

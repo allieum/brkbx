@@ -32,8 +32,9 @@ from time import ticks_us, ticks_diff
 
 from clock import MidiClock
 from control import joystick, rotary, rotary_pressed
-from fx import Gate, Latch
+import fx
 from sample import Sample, load_samples
+from sequence import StepParams
 import utility
 
 logger = utility.get_logger(__name__)
@@ -169,8 +170,6 @@ midi_clock = MidiClock()
 # 1) calculate offsets into file for each beat
 # 2) trigger those on the proper midi step
 # 3) figure out time stretching or w/e
-gate = Gate()
-latch = Latch()
 rotary_position = rotary.value()
 current_sample = samples[rotary_position % len(samples)]
 
@@ -187,44 +186,30 @@ async def play_step(step):
     ticks = ticks_us()
     # logger.info(f"{ticks_diff(ticks, last_step) / 1000000}")
     last_step = ticks
-    x, y = joystick.position()
-    if x > 0.2:
-        length = 4 if x > 0.9 else 2 if x > 0.5 else 1
-        step = latch.get(step, length)
-        if y < -0.5:
-            latch.reps = 4
-        elif y > 0.5:
-            latch.reps = 2
-        else:
-            latch.reps = None
-    else:
-        latch.cancel()
     # logger.info(f"getting step {step}"
-    chunk_samples = current_sample.get_chunk(step)
     # logger.info(f"playing samples for step {step}")
     # rate = midi_clock.bpm / current_sample.bpm
     stretch_rate = 1
     # stretch_rate = midi_clock.bpm / current_sample.bpm
+    # pitch_rate = 1
+    pitch_rate = midi_clock.bpm / current_sample.bpm
+    params = StepParams(step, pitch_rate, stretch_rate)
+    fx.joystick_mode.update(params)
+    chunk_samples = current_sample.get_chunk(params.step)
     stretch_block_length = 0.030 # in seconds
     stretch_block_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
     if stretch_block_samples > current_sample.samples_per_chunk:
         logger.warning(f"stretch block bigger than sample chunk {stretch_block_samples} vs {current_sample.samples_per_chunk}, using smaller")
         stretch_block_samples = current_sample.samples_per_chunk
-    samples_per_stretch_block = round(1 / stretch_rate * stretch_block_samples)
-    # pitch_rate = 1
-    pitch_rate = midi_clock.bpm / current_sample.bpm
+    samples_per_stretch_block = round(1 / params.stretch_rate * stretch_block_samples)
     # logger.info(f"play rate for step {step} is {rate}")
-    effective_rate = stretch_rate * pitch_rate
-    pitched_samples = round(current_sample.samples_per_chunk / pitch_rate)
+    effective_rate = params.stretch_rate * params.pitch_rate
+    pitched_samples = round(current_sample.samples_per_chunk / params.pitch_rate)
     target_samples = round(current_sample.samples_per_chunk / effective_rate)
 
     # logger.info(f"start write {step}")
     # TODO this is probably causing us to miss clocks since it takes ~20ms. think about this.
     # at 32nd notes this gate is kinda choppy nonsense. could work at meta level.
-    gate.ratio = 1 if x > 0 else 1 + x
-    gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
-    on_steps = gate.ratio * gate.period
-    play_step = step % gate.period <= on_steps
 
     # writing_audio = True
     i2s_chunk_size = 1024
@@ -267,7 +252,7 @@ async def play_step(step):
         # logger.info(f"stretch block offset: {stretch_block_offset}")
         for i in range(samples_per_stretch_block):
             block_i = i % min(stretch_block_samples, current_sample.samples_per_chunk - stretch_block_offset)
-            j = round((stretch_block_offset + block_i) * pitch_rate)
+            j = round((stretch_block_offset + block_i) * params.pitch_rate)
             # fadein_factor = FADE_SAMPLES - block_i
             # fadeout_factor = block_i - (stretch_block_samples - FADE_SAMPLES)
             # gain = 1
@@ -281,7 +266,7 @@ async def play_step(step):
             # # if j != prev_j + 1:
             # #     logger.info(f"j went from {prev_j} to {j}")
             # prev_j = j
-            audio_data = chunk_samples[j * 2: j * 2 + 2] if play_step else silence
+            audio_data = chunk_samples[j * 2: j * 2 + 2] if params.play_step else silence
             # if gain != 1:
             #     for k in range(0, len(audio_data), 2):
             #         val = int.from_bytes(audio_data[k:k + 2], "little")
