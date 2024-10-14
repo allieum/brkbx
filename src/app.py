@@ -198,13 +198,13 @@ async def play_step(step):
     chunk_samples = current_sample.get_chunk(params.step)
     stretch_block_length = 0.030 # in seconds
     stretch_block_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
-    if stretch_block_samples > current_sample.samples_per_chunk:
+    pitched_samples = round(current_sample.samples_per_chunk / params.pitch_rate)
+    if stretch_block_samples > pitched_samples:
         logger.warning(f"stretch block bigger than sample chunk {stretch_block_samples} vs {current_sample.samples_per_chunk}, using smaller")
-        stretch_block_samples = current_sample.samples_per_chunk
+        stretch_block_samples = pitched_samples
     samples_per_stretch_block = round(1 / params.stretch_rate * stretch_block_samples)
     # logger.info(f"play rate for step {step} is {rate}")
     effective_rate = params.stretch_rate * params.pitch_rate
-    pitched_samples = round(current_sample.samples_per_chunk / params.pitch_rate)
     target_samples = round(current_sample.samples_per_chunk / effective_rate)
 
     # logger.info(f"start write {step}")
@@ -251,7 +251,7 @@ async def play_step(step):
     for stretch_block_offset in range(0, pitched_samples, stretch_block_samples):
         # logger.info(f"stretch block offset: {stretch_block_offset}")
         for i in range(samples_per_stretch_block):
-            block_i = i % min(stretch_block_samples, current_sample.samples_per_chunk - stretch_block_offset)
+            block_i = i % min(stretch_block_samples, pitched_samples - stretch_block_offset)
             j = round((stretch_block_offset + block_i) * params.pitch_rate)
             # fadein_factor = FADE_SAMPLES - block_i
             # fadeout_factor = block_i - (stretch_block_samples - FADE_SAMPLES)
@@ -276,7 +276,7 @@ async def play_step(step):
             # else:
             #     # swriter.write(audio_data)
             if len(audio_data) < 2:
-                logger.warning(f"invalid data {list(audio_data)} j={j} i={i} {len(chunk_samples)} {samples_per_stretch_block} {stretch_block_samples}")
+                logger.warning(f"invalid data {list(audio_data)} j={j} i={i} {len(chunk_samples)} {samples_per_stretch_block} {params.pitch_rate} {stretch_block_offset}")
             for i in range(len(audio_data)):
                 audio_out_buffer[bytes_written + i] = audio_data[i]
             bytes_written += 2
