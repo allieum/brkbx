@@ -90,7 +90,7 @@ async def midi_receive():
                 # logger.info(f"midi hello {msg}")
                 step = midi_clock.process_clock(ticks)
                 if step is not None and not writing_audio:
-                    if prev_step:
+                    if prev_step and not fx.joystick_mode.has_input():
                         prev_step.cancel()
                     prev_step = asyncio.create_task(play_step(step))
             elif isinstance(msg, Start):
@@ -195,6 +195,8 @@ async def play_step(step):
     pitch_rate = midi_clock.bpm / current_sample.bpm
     params = StepParams(step, pitch_rate, stretch_rate)
     fx.joystick_mode.update(params)
+    if params.step is None:
+        return
     chunk_samples = current_sample.get_chunk(params.step)
     stretch_block_length = 0.030 # in seconds
     stretch_block_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)

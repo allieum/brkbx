@@ -1,6 +1,10 @@
 # let's do timestretch and pitch mod next :)
 from control import joystick
 from sequence import StepParams
+from sample import CHUNKS
+from utility import get_logger
+
+logger = get_logger(__name__)
 
 class Gate:
     def __init__(self):
@@ -27,9 +31,32 @@ class Latch:
         self.step = None
         self.count = 0
 
+class Stretch:
+    def __init__(self) -> None:
+        self.stretch_start = None
+
+    def get_slice(self, step: int, rate: float):
+        if self.stretch_start is None:
+            self.stretch_start = step
+            self.stretch_start -= self.stretch_start % 8
+        steps = (step - self.stretch_start) % (CHUNKS / rate)
+        stretched_slice = (self.stretch_start + rate * steps) % CHUNKS
+        if stretched_slice == round(stretched_slice):
+            logger.info(f"stretched slice {stretched_slice}")
+            return int(stretched_slice)
+        else:
+            return None
+
+    def cancel(self):
+        self.stretch_start = None
+
 class JoystickMode:
     def update(self, params: StepParams):
         pass
+
+    def has_input(self):
+        x, y = joystick.position()
+        return abs(x) > 0.2 or abs(y) > 0.2
 
 class GateRepeatMode(JoystickMode):
     def __init__(self):
@@ -53,7 +80,20 @@ class GateRepeatMode(JoystickMode):
         self.gate.ratio = 1 if x > 0 else 1 + x
         self.gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
         on_steps = self.gate.ratio * self.gate.period
+        # TODO !play_step could be expressed as params.step = None
         params.play_step = params.step % self.gate.period <= on_steps
-joystick_mode = GateRepeatMode()
 
+class PitchStretchMode(JoystickMode):
+    def __init__(self) -> None:
+        self.stretch = Stretch()
+    def update(self, params: StepParams):
+        x, y = joystick.position()
+        if x < -0.5:
+            rate = 0.5
+            params.stretch_rate *= rate
+            params.step = self.stretch.get_slice(params.step, rate)
+        else:
+            self.stretch.cancel()
 
+joystick_mode = PitchStretchMode()
+# joystick_mode = GateRepeatMode()
