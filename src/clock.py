@@ -1,12 +1,12 @@
 import utility
 from collections import deque
-from time import ticks_us, ticks_diff
+from time import ticks_add, ticks_us, ticks_diff
 
 logger = utility.get_logger(__name__, "DEBUG")
 
 
 class MidiClock:
-    BPM_INTERVAL = 96
+    BPM_INTERVAL = 48
 
     def __init__(self):
         self.clock_count = 0
@@ -15,21 +15,29 @@ class MidiClock:
         self.last_clock_ticks = 0
         self.last_step_ticks = 0
         self.bpm = 143
+        self.prev_bpm = self.bpm
         self.clock_buffer = deque([0], 24)
         self.prev_ticks = None
         self.start_ticks = None
+        self.bpm_changed = lambda _: ()
 
     def start(self):
-        """ proceess midi start message """
-        logger.info("received midi start")
-        self.play_mode = True
-        self.clock_count = -1
         self.song_position = -1
+        self.midi_continue()
         self.last_clock_ticks = 0
         self.last_step_ticks = 0
         self.prev_ticks = None
         self.start_ticks = None
         # self.prev_ticks = ticks_us()
+
+    def midi_continue(self):
+        """ proceess midi start message """
+        logger.info("received midi start")
+        self.play_mode = True
+        self.clock_count = -1
+
+    def set_song_position(self, spp):
+        self.song_position = 2 * spp
 
     def stop(self):
         """ proceess midi stop message """
@@ -56,7 +64,11 @@ class MidiClock:
         bpm = round(60 / secs_per_beat)
         return bpm
 
-
+    def predict_next_step_ticks(self):
+        ticks_per_beat = 60 / self.bpm * 1000000
+        ticks_per_step = round(ticks_per_beat / 8)
+        # logger.info(f"{self.last_step_ticks + ticks_per_step}")
+        return ticks_add(self.last_step_ticks, ticks_per_step)
 
     # add logging to measure drift for playing steps
     def process_clock(self, ticks) -> int | None:
@@ -93,6 +105,7 @@ class MidiClock:
             new_position = self.song_position
             predicted_ticks = round(self.clock_count / 24 / self.bpm * 60 * 1000000)
             actual_ticks = ticks_diff(ticks, self.start_ticks)
+            self.last_step_ticks = ticks
             # logger.info(f"predicted {predicted_ticks}, actual {actual_ticks}")
             lag = ticks_diff(predicted_ticks, actual_ticks) / 1000000
             if lag < 0:
@@ -100,12 +113,16 @@ class MidiClock:
                 # logger.info(f"lag is {ticks_diff(predicted_ticks, actual_ticks) / 1000000}")
         if self.clock_count % self.BPM_INTERVAL == 0:
             bpm = self.update_bpm(self.song_position, ticks)
-            if bpm != 0 and bpm != self.bpm:
+            if bpm != self.bpm and bpm == self.prev_bpm and bpm >= 40 and bpm < 300:
                 self.bpm = bpm
                 logger.debug(f"bpm changed to {bpm}")
+                self.bpm_changed(bpm)
+            self.prev_bpm = bpm
         elif self.clock_count < self.BPM_INTERVAL:
             bpm = self.estimate_bpm(ticks)
-            if bpm != 0 and bpm != self.bpm:
+            if bpm != self.bpm and bpm == self.prev_bpm and bpm >= 40 and bpm < 300:
                 self.bpm = bpm
                 logger.debug(f"bpm estimated as {bpm}")
+                self.bpm_changed(bpm)
+            self.prev_bpm = bpm
         return new_position

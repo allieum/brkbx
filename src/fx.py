@@ -110,6 +110,7 @@ class GateRepeatMode(JoystickMode):
 
         self.gate.ratio = 1 if x > 0 else 1 + x
         self.gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
+        self.gate.period /= 2
         on_steps = self.gate.ratio * self.gate.period
         # TODO !play_step could be expressed as params.step = None
         if params.step:
