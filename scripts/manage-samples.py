@@ -1,28 +1,38 @@
 #!/usr/bin/env python3
 import subprocess
 
-LIST_WAV_CMD = [
+REMOTE_SAMPLE_DIR = '/sd/samples'
+LOCAL_SAMPLE_DIR = 'tmp/22050'
+MOUNT_CMD = [
     'mpremote',
     'exec',
     'import os, machine',
     'exec',
     "os.mount(machine.SDCard(), '/sd')",
+]
+LS_CMD = [
     'ls',
-    '/sd/samples',
+    REMOTE_SAMPLE_DIR
 ]
 
 SED_CMD = [
     "sed",
     "-nr",
-    r"s/.* (\w+.wav)/\1/p",
+    r"s/.* (.+.wav)/\1/p",
 ]
 
-ps = subprocess.Popen(LIST_WAV_CMD, stdout=subprocess.PIPE)
-sed = subprocess.run(SED_CMD, stdin=ps.stdout, capture_output=True, text=True)
+def list_samples() -> list[str]:
+    ps = subprocess.Popen(MOUNT_CMD + LS_CMD, stdout=subprocess.PIPE)
+    sed = subprocess.run(SED_CMD, stdin=ps.stdout, capture_output=True, text=True)
+    return sed.stdout.splitlines()
 
-# print(sed.stdout)
-# print(sed.stderr)
+def get_sample(filename):
+    res = subprocess.run([*MOUNT_CMD, "cp", f":{REMOTE_SAMPLE_DIR}/{filename}", f"{LOCAL_SAMPLE_DIR}/{filename}"])
 
-for wav_file in sed.stdout.splitlines():
-    # copy files from device, push them to device
-    print(wav_file)
+def put_sample(filename):
+    subprocess.run([*MOUNT_CMD, "cp", f"{LOCAL_SAMPLE_DIR}/{filename}", f":{REMOTE_SAMPLE_DIR}/{filename}"])
+
+
+for wav in list_samples():
+    print(wav)
+    put_sample(wav)
