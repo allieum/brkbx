@@ -555,6 +555,9 @@ class CODEC:
 
         self.regs = Regs(address, i2c)
 
+        print(f"clock control = {self.regs[CHIP_CLK_CTRL]:b}")
+        self.deinit()
+        print(f"clock control after deinit = {self.regs[CHIP_CLK_CTRL]:b}")
         # VDDD is externally driven with 1.8V
         self.regs[CHIP_ANA_POWER] = 0x4060
         # VDDA & VDDIO both over 3.1V
@@ -586,13 +589,19 @@ class CODEC:
             # Calculate the PLL dividers and enable the PLL.
             int_divisor = PLL_output_freq // mclk_freq
             frac_divisor = (PLL_output_freq * 2048) // mclk_freq - int_divisor * 2048
+            frac_divisor = round((PLL_output_freq / mclk_freq - int_divisor) * 2048)
+            # self.regs[CHIP_PLL_CTRL] = 0xFFFF
+            print(f"int divisor {int_divisor} frac divisor {frac_divisor}")
             self.regs[CHIP_PLL_CTRL] = (int_divisor << 11) | (frac_divisor & 0x7ff)
             self.regs[CHIP_ANA_POWER] = 0x45FF
         elif mclk_mode == 0 and rate_mode != 0:
             raise ValueError("Sampling frequency too low for mclk_mode=0")
 
         # Set the Sysclk parameters
-        self.regs[CHIP_CLK_CTRL] = (rate_mode << 4) | (sys_fs << 2) | mclk_mode
+        print(f"rate_mode, sys_fs = {rate_mode, sys_fs, mclk_freq, mclk_mode}")
+        print(f"clock control = {self.regs[CHIP_CLK_CTRL]:b}")
+        self.regs[CHIP_CLK_CTRL] = (clk_ctrl_val := (rate_mode << 4) | (sys_fs << 2) | mclk_mode)
+        print(f"clock control = {self.regs[CHIP_CLK_CTRL]:b} after setting {clk_ctrl_val:b}")
         # Fsclk=Fs*64, 32bit samples, I2S format (data length)
         self.regs[CHIP_I2S_CTRL] = 0x0030
         # ADC->I2S, I2S->DAC
@@ -1185,7 +1194,9 @@ class Regs:
             cmd (byte): Command address to write
             data (int): Int to write
         """
+        print(f"before writing {data:x} to {cmd:x} contents is {self[cmd]:x}")
         self.i2c.writeto_mem(self.address,
                              cmd,
                              data.to_bytes(2, 'big'),
                              addrsize=16)
+        print(f"after writing {data:x} to {cmd:x} contents is {self[cmd]:x}")
