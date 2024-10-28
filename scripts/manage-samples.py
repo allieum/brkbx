@@ -2,7 +2,8 @@
 import subprocess
 
 REMOTE_SAMPLE_DIR = '/sd/samples'
-LOCAL_SAMPLE_DIR = 'tmp/22050'
+# LOCAL_SAMPLE_DIR = 'tmp/22050'
+LOCAL_SAMPLE_DIR = 'Downloads'
 MOUNT_CMD = [
     'mpremote',
     'exec',
@@ -32,7 +33,7 @@ def get_sample(filename):
 def put_sample(filename):
     subprocess.run([*MOUNT_CMD, "cp", f"{LOCAL_SAMPLE_DIR}/{filename}", f":{REMOTE_SAMPLE_DIR}/{filename}"])
 
-
-for wav in list_samples():
-    print(wav)
-    put_sample(wav)
+put_sample('wav_music-16k-16bits-stereo.wav')
+# for wav in list_samples():
+#     print(wav)
+#     put_sample(wav)

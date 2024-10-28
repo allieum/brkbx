@@ -35,7 +35,7 @@ def find_wav_data(wav_file) -> Tuple[int, int]:
 # NOTE: could read the fmt chunk to validate these, for now just assume
 CHANNELS = 1
 BYTES_PER_SAMPLE = 2
-SAMPLE_RATE = 44100
+SAMPLE_RATE = 22050
 CHUNKS = 32
 
 

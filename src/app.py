@@ -27,7 +27,7 @@ import os
 from machine import I2C
 from machine import I2S
 from machine import Pin
-from machine import SDCard
+from machine import SDCard, PWM
 from machine import UART
 from sgtl5000 import CODEC
 from time import ticks_us, ticks_diff
@@ -52,12 +52,13 @@ MCK_PIN = 'D23'
 I2S_ID = 1
 BUFFER_LENGTH_IN_BYTES = 40000
 # ======= I2S CONFIGURATION =======
+# mclk = PWM(Pin(MCK_PIN), 10000000)
 
 # ======= AUDIO CONFIGURATION =======
 WAV_FILE = "think.wav"
 WAV_SAMPLE_SIZE_IN_BITS = 16
 FORMAT = I2S.MONO
-SAMPLE_RATE_IN_HZ = 44100
+SAMPLE_RATE_IN_HZ = 22050
 # ======= AUDIO CONFIGURATION =======
 
 # MIDI config
@@ -157,6 +158,7 @@ def init_audio(i2s):
 # configure the SGTL5000 codec
 i2c = I2C(0, freq=400000)
 codec = CODEC(0x0A, i2c)
+# codec = CODEC(0x0A, i2c, sample_rate=22050, mclk_mode=2)
 codec.mute_dac(False)
 codec.dac_volume(0.9, 0.9)
 codec.headphone_select(0)
@@ -198,7 +200,7 @@ current_sample = samples[rotary_position % len(samples)]
 writing_audio = False
 swriter = asyncio.StreamWriter(audio_out)
 last_step = ticks_us()
-audio_out_buffer = bytearray(44100)
+audio_out_buffer = bytearray(22050)
 audio_out_mv = memoryview(audio_out_buffer)
 bytes_written = 0
 target_samples = 0
@@ -283,7 +285,7 @@ async def prepare_step(step):
             done = samples_written == target_samples
             if (bytes_written - last_write_index >= i2s_chunk_size or done):
                 # next: switch to 22050 squeeze out the juiiiiice
-                audio_len = (bytes_written - last_write_index) / 2 / 44100
+                audio_len = (bytes_written - last_write_index) / 2 / SAMPLE_RATE_IN_HZ
                 now = time.ticks_us()
                 logger.info(f"{step} pausing {bytes_written}, preparing {audio_len}s took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
                 elapsed = ticks_diff(now, prev_write) / 1000000
@@ -366,6 +368,7 @@ async def main():
         os.umount("/sd")
         sd.deinit()
         audio_out.deinit()
+        mclk.deinit()
         print("Done")
 
 def run():
