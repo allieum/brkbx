@@ -555,7 +555,7 @@ class CODEC:
 
         self.regs = Regs(address, i2c)
 
-        print(f"clock control = {self.regs[CHIP_CLK_CTRL]:b}")
+        # print(f"clock control = {self.regs[CHIP_CLK_CTRL]:b}")
         self.deinit()
         print(f"clock control after deinit = {self.regs[CHIP_CLK_CTRL]:b}")
         # VDDD is externally driven with 1.8V
@@ -603,6 +603,7 @@ class CODEC:
         self.regs[CHIP_CLK_CTRL] = (clk_ctrl_val := (rate_mode << 4) | (sys_fs << 2) | mclk_mode)
         print(f"clock control = {self.regs[CHIP_CLK_CTRL]:b} after setting {clk_ctrl_val:b}")
         # Fsclk=Fs*64, 32bit samples, I2S format (data length)
+        #  does fskclk need to be set differently?
         self.regs[CHIP_I2S_CTRL] = 0x0030
         # ADC->I2S, I2S->DAC
         self.regs[CHIP_SSS_CTRL] = 0x0010
