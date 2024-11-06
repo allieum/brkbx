@@ -39,6 +39,8 @@ from sample import BYTES_PER_SAMPLE, Sample, load_samples
 from sequence import StepParams
 import utility
 
+import native_wav
+
 logger = utility.get_logger(__name__)
 
 sd = SDCard(1)  # Teensy 4.1: sck=45, mosi=43, miso=42, cs=44
@@ -218,6 +220,15 @@ audio_out_buffer = bytearray(22050)
 audio_out_mv = memoryview(audio_out_buffer)
 bytes_written = 0
 target_samples = 0
+
+# size = native_wav.write(audio_out_buffer)
+# logger.info(f"buffer size from c world: {size}")
+# @utility.timed_function
+# def write_test():
+#     size = native_wav.write(audio_out_buffer)
+# write_test()
+
+
 async def prepare_step(step):
     global target_samples, writing_audio, last_step, bytes_written, step_start_bytes
     if writing_audio:

@@ -1,5 +1,9 @@
 #+title: Notes
 
+* native .mpy module
+** A native .mpy module is built using the mpy_ld.py tool, which is found in the tools/ directory of the project. This tool takes a set of object files (.o files) and links them together to create a native .mpy files. It requires CPython 3 and the library pyelftools v0.25 or greater.
+** So, if your C code has writable data, make sure the data is defined globally, without an initialiser, and only written to within functions.
+
 
 
 * ideas!
