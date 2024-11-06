@@ -274,6 +274,7 @@ async def prepare_step(step):
     FADE_SAMPLES = 10
     prev_length = None
     prev_write = write_begin
+    logger.info(f"preamble for {step} took {ticks_diff(write_begin, ticks) / 1000000}s")
     for stretch_block_offset in range(0, pitched_samples, stretch_block_samples):
         # logger.info(f"stretch block offset: {stretch_block_offset}")
         for i in range(samples_per_stretch_block):

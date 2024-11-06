@@ -13,19 +13,29 @@
 /* } */
 
 // This is the function which will be called from Python, as factorial(x)
-static mp_obj_t write(mp_obj_t x_obj) {
+static mp_obj_t write(mp_obj_t audio_out,
+                      mp_obj_t source_samples,
+                      mp_obj_t stretch_block_input_samples_int,
+                      mp_obj_t stretch_block_output_samples_int,
+                      mp_obj_t pitch_rate_float) {
     // Extract the integer from the MicroPython input object
     /* mp_int_t x = mp_obj_get_int(x_obj); */
-    mp_buffer_info_t bufinfo;
-    mp_get_buffer_raise(x_obj, &bufinfo, MP_BUFFER_WRITE);
-    byte *buf = (byte*) bufinfo.buf;
-    for (int i = 0; i < bufinfo.len; i++) {
+    mp_buffer_info_t outbufinfo;
+    mp_get_buffer_raise(audio_out, &outbufinfo, MP_BUFFER_WRITE);
+    byte *buf = (byte*) outbufinfo.buf;
+    for (int i = 0; i < outbufinfo.len; i++) {
         buf[i] = i;
     }
+    mp_buffer_info_t sourcebufinfo;
+    mp_get_buffer_raise(source_samples, &sourcebufinfo, MP_BUFFER_READ);
+
+    mp_int_t stretch_block_input_samples = mp_obj_get_int(stretch_block_input_samples_int);
+    mp_int_t stretch_block_output_samples = mp_obj_get_int(stretch_block_output_samples_int);
+    float pitch_rate = mp_obj_get_float(pitch_rate_float);
     // Calculate the factorial
     /* mp_int_t result = write_helper(x); */
     // Convert the result to a MicroPython integer object and return it
-    return mp_obj_new_int(bufinfo.len);
+    return mp_obj_new_int(outbufinfo.len);
 }
 // Define a Python reference to the function above
 static MP_DEFINE_CONST_FUN_OBJ_1(write_obj, write);
