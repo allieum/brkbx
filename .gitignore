@@ -1,3 +1,4 @@
 tmp/*
 /native/micropython/
 /native/factorial/build/factorial.config.h
+/.ccls-cache/

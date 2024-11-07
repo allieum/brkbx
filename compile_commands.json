@@ -1,0 +1,7 @@
+[
+  {
+    "directory": "/home/lyric/code/brkbx/native/native_wav",
+    "file": "write.c",
+    "command": "arm-none-eabi-gcc -I. -I../ -std=c99 -Os -Wall -Werror -DNDEBUG -DNO_QSTR -DMICROPY_ENABLE_DYNRUNTIME -DMP_CONFIGFILE='<build/native_wav.config.h>' -fpic -fno-common -U _FORTIFY_SOURCE  -mthumb -mcpu=cortex-m3 -DMICROPY_FLOAT_IMPL=MICROPY_FLOAT_IMPL_NONE  -o build/write.o -c write.c"
+  }
+]
