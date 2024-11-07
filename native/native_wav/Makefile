@@ -8,7 +8,7 @@ MOD = native_wav
 SRC = write.c
 
 # Architecture to build for (x86, x64, armv6m, armv7m, xtensa, xtensawin)
-ARCH = armv7m
+ARCH = armv7emdp
 
 # Include to get the rules for compiling and linking the module
 include $(MPY_DIR)/py/dynruntime.mk
