@@ -81,6 +81,7 @@ async def midi_receive():
     # TODO: can't handle multibyte messages, increasing buffer size delays receipt of TimingClock so keep it fixed for now
     midi = MIDI(midi_in=sreader, midi_out=uart, in_buf_size=3)
     ticks = ticks_us()
+    stretch_write = 0
     while True:
         # data = await sreader.read(3)
         # logger.info(f"after await: {uart.any()}, data length {len(data)}")
@@ -102,7 +103,16 @@ async def midi_receive():
                 if step is not None:
                     logger.info(f"writing step {step} to i2s...")
                     started_writing_step = False
-                    await write_audio(step, 0, bytes_written)
+                    step_bytes = round(60 / midi_clock.bpm / 8 * SAMPLE_RATE_IN_HZ) * 2
+                    if fx.joystick_mode.stretch.is_active():
+                        logger.info(f"stretch writing {stretch_write}:{stretch_write+step_bytes}, bytes_written={bytes_written}")
+                        await write_audio(step, stretch_write, stretch_write + step_bytes)
+                        stretch_write += step_bytes
+                        if stretch_write + step_bytes > bytes_written:
+                            stretch_write = 0
+                    else:
+                        stretch_write = 0
+                        await write_audio(step, 0, bytes_written)
                     logger.info(f"wrote step {step} to i2s")
             elif isinstance(msg, Start):
                 midi_clock.start()
@@ -255,13 +265,14 @@ async def prepare_step(step):
     effective_rate = params.stretch_rate * params.pitch_rate
     target_samples = round(current_sample.samples_per_chunk / effective_rate)
     i2s_chunk_size = 256
+    step_samples = round(60 / midi_clock.bpm / 8 * SAMPLE_RATE_IN_HZ)
 
     # if bytes_written + target_samples * 2 > len(audio_out_buffer):
     #     logger.info(f"rolling over audio out buffer, setting bytes_written = 0")
     #     bytes_written = 0
     # step_start_bytes = bytes_written
     # logger.info(f"step {step} total bytes {target_samples * 2} [{step_start_bytes}: {step_start_bytes + target_samples * 2}]")
-    bytes_written = 0
+    # bytes_written = 0
 
     samples_written = 0
     last_write_index = 0
@@ -272,7 +283,7 @@ async def prepare_step(step):
     prev_length = None
     prev_write = write_begin
     logger.info(f"preamble for {step} took {ticks_diff(write_begin, ticks) / 1000000}s")
-
+    # logger.info(f"{step_samples} vs {target_samples}")
     if params.play_step:
         bytes_written = native_wav.write(audio_out_buffer, chunk_samples, stretch_block_input_samples, stretch_block_output_samples, target_samples, pitched_samples, params.pitch_rate)
         logger.info(f"finished writing {step} res={bytes_written}, took {ticks_diff(ticks_us(), write_begin) / 1000000}s")

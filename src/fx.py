@@ -62,6 +62,9 @@ class Stretch:
         else:
             return None
 
+    def is_active(self):
+        return self.stretch_start is not None
+
     def cancel(self):
         self.stretch_start = None
 
@@ -107,6 +110,8 @@ class GateRepeatMode(JoystickMode):
             rate = 0.5
             params.stretch_rate *= rate
             params.step = self.stretch.get_slice(params.step, rate)
+        else:
+            self.stretch.cancel()
 
         self.gate.ratio = 1 if x > 0 else 1 + x
         self.gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
