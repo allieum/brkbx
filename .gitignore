@@ -2,3 +2,5 @@ tmp/*
 /native/micropython/
 /native/factorial/build/factorial.config.h
 /.ccls-cache/
+/native/native_wav/build
+/native/native_wav/native_wav.mpy
