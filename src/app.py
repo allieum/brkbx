@@ -274,7 +274,7 @@ async def prepare_step(step):
     logger.info(f"preamble for {step} took {ticks_diff(write_begin, ticks) / 1000000}s")
 
     if params.play_step:
-        bytes_written = native_wav.write(audio_out_buffer, chunk_samples, stretch_block_input_samples, stretch_block_output_samples, target_samples, pitched_samples, pitch_rate)
+        bytes_written = native_wav.write(audio_out_buffer, chunk_samples, stretch_block_input_samples, stretch_block_output_samples, target_samples, pitched_samples, params.pitch_rate)
         logger.info(f"finished writing {step} res={bytes_written}, took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
 
     # for stretch_block_offset in range(0, pitched_samples, stretch_block_input_samples):
@@ -282,6 +282,14 @@ async def prepare_step(step):
     #     for i in range(stretch_block_output_samples):
     #         block_i = i % min(stretch_block_input_samples, pitched_samples - stretch_block_offset)
     #         j = round((stretch_block_offset + block_i) * params.pitch_rate)
+    #         # logger.info(f"python: block_i = {block_i}, j = {j}")
+    #         samples_written += 1
+    #         bytes_written += 2
+    #         if samples_written == target_samples:
+    #             break
+    #         audio_data = chunk_samples[j * 2: j * 2 + 2] if params.play_step else silence
+    #         for i in range(len(audio_data)):
+    #             audio_out_buffer[bytes_written + i] = audio_data[i]
     #         # fadein_factor = FADE_SAMPLES - block_i
     #         # fadeout_factor = block_i - (stretch_block_samples - FADE_SAMPLES)
     #         # gain = 1
@@ -295,7 +303,6 @@ async def prepare_step(step):
     #         # # if j != prev_j + 1:
     #         # #     logger.info(f"j went from {prev_j} to {j}")
     #         # prev_j = j
-    #         audio_data = chunk_samples[j * 2: j * 2 + 2] if params.play_step else silence
     #         # if gain != 1:
     #         #     for k in range(0, len(audio_data), 2):
     #         #         val = int.from_bytes(audio_data[k:k + 2], "little")
@@ -306,8 +313,6 @@ async def prepare_step(step):
     #         #     # swriter.write(audio_data)
     #         if len(audio_data) < 2:
     #             logger.warning(f"invalid data {list(audio_data)} j={j} i={i} {len(chunk_samples)} {stretch_block_output_samples} {params.pitch_rate} {stretch_block_offset}")
-    #         for i in range(len(audio_data)):
-    #             audio_out_buffer[bytes_written + i] = audio_data[i]
     #         bytes_written += 2
     #         samples_written += 1
     #         done = samples_written == target_samples
@@ -355,7 +360,9 @@ async def write_audio(step, start, end):
     swriter.out_buf = audio_out_mv[start: end]
     logger.info(f"{step} writing audio from {start} to {end}")
     await swriter.drain()
-    logger.info(f"{step} finished writing audio from {start} to {end}")
+    audio_len = (end - start) / 2 / SAMPLE_RATE_IN_HZ
+    logger.info(f"{step} finished writing {audio_len}s of audio")
+
 
 
 async def main():
