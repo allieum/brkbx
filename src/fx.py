@@ -23,6 +23,9 @@ class Gate:
     def __init__(self):
         self.period = 4
         self.ratio = 1.0
+    def is_on(self, step):
+        on_steps = self.ratio * self.period
+        return step % self.period <= on_steps
 
 class Latch:
     def __init__(self):
@@ -106,6 +109,12 @@ class GateRepeatMode(JoystickMode):
             self.latch.cancel()
             self.pitch.cancel()
 
+        self.gate.ratio = 1 if x > 0 else 1 + x
+        self.gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
+        self.gate.period /= 2
+        # TODO !play_step could be expressed as params.step = None
+        # if params.step:
+        #     params.play_step = self.gate.is_on(params.step)
         if x < -0.1:
             rate = 0.5
             params.stretch_rate *= rate
@@ -113,13 +122,6 @@ class GateRepeatMode(JoystickMode):
         else:
             self.stretch.cancel()
 
-        self.gate.ratio = 1 if x > 0 else 1 + x
-        self.gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
-        self.gate.period /= 2
-        on_steps = self.gate.ratio * self.gate.period
-        # TODO !play_step could be expressed as params.step = None
-        if params.step:
-            params.play_step = params.step % self.gate.period <= on_steps
 
 class PitchStretchMode(JoystickMode):
     def __init__(self) -> None:
