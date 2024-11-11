@@ -67,7 +67,7 @@ SAMPLE_RATE_IN_HZ = 22050
 # MIDI config
 midi_rx = Pin("D28", Pin.IN)
 # TX_PIN = Pin("D29", Pin.IN)
-LOOKAHEAD_SEC = 0.025
+LOOKAHEAD_SEC = 0.015
 async def midi_receive():
     global started_writing_step, step_start_bytes, bytes_written
     logger.info("midi hello")
@@ -402,7 +402,7 @@ async def main():
                 await prepare_step(midi_clock.song_position + 1)
 
             # does this need to be wrapped in another async task to be worth while..... ?????
-            await asyncio.sleep(0.010)
+            await asyncio.sleep(0.005)
             if rotary_position != rotary.value():
                 rotary_position = rotary.value()
                 current_sample = samples[rotary_position % len(samples)]
