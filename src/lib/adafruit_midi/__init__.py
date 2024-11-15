@@ -31,6 +31,7 @@ except ImportError:
     pass
 
 from .midi_message import MIDIMessage
+import time
 
 __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MIDI.git"
@@ -128,6 +129,7 @@ class MIDI:
             # EDIT to allow passing in bytes from async task
             # bytes_in = data if data is not None else self._midi_in.read(self._in_buf_size - len(self._in_buf))
             bytes_in = await self._midi_in.read(self._in_buf_size - len(self._in_buf))
+            # print(f"{time.ticks_us() / 1000000} receive midi msg")
             if bytes_in:
                 if self._debug:
                     print("Receiving: ", [hex(i) for i in bytes_in])

@@ -116,6 +116,7 @@ async def midi_receive():
                         stretch_write = 0
                 else:
                     stretch_write = 0
+                    logger.info(f"about to write_audio")
                     await write_audio(step, 0, bytes_written)
                 logger.info(f"wrote step {step} to i2s")
             elif isinstance(msg, Start):

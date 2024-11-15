@@ -37,7 +37,7 @@ class MidiClock:
         self.clock_count = -1
 
     def set_song_position(self, spp):
-        self.song_position = 2 * spp
+        self.song_position = 2 * spp - 1
 
     def stop(self):
         """ proceess midi stop message """
