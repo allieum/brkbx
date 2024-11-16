@@ -1,4 +1,4 @@
-from control import joystick
+from control import joystick, joystick_recording, record_current_history
 from sequence import StepParams
 from sample import CHUNKS
 from utility import get_logger
@@ -75,8 +75,8 @@ class JoystickMode:
     def update(self, params: StepParams):
         pass
 
-    def has_input(self):
-        x, y = joystick.position()
+    def has_input(self, step = None):
+        x, y = joystick.position(step)
         return abs(x) > 0.2 or abs(y) > 0.2
 
 class GateRepeatMode(JoystickMode):
@@ -87,7 +87,9 @@ class GateRepeatMode(JoystickMode):
         self.stretch = Stretch()
 
     def update(self, params: StepParams):
-        x, y = joystick.position()
+        x, y = joystick.position(params.step)
+        if joystick.pressed():
+            record_current_history(params.step)
         if x > 0.2:
             length = 4 if x > 0.9 else 2 if x > 0.5 else 1
             params.step = self.latch.get(params.step, length)

@@ -33,7 +33,7 @@ from sgtl5000 import CODEC
 from time import ticks_us, ticks_diff
 
 from clock import MidiClock
-from control import joystick, rotary, rotary_pressed
+from control import joystick, rotary, rotary_pressed, log_joystick
 import fx
 from sample import BYTES_PER_SAMPLE, Sample, load_samples
 from sequence import StepParams
@@ -82,6 +82,8 @@ async def midi_receive():
     midi = MIDI(midi_in=sreader, midi_out=uart, in_buf_size=3)
     ticks = ticks_us()
     stretch_write = 0
+    last_input_step = 0
+    PLAY_WINDOW = 2
     while True:
         # data = await sreader.read(3)
         # logger.info(f"after await: {uart.any()}, data length {len(data)}")
@@ -103,22 +105,26 @@ async def midi_receive():
                 if step is None:
                     continue
                 started_writing_step = False
-                if not fx.joystick_mode.gate.is_on(step):
+                if fx.joystick_mode.has_input(step):
+                    last_input_step = step
+                in_play_window = step - last_input_step < PLAY_WINDOW
+                if not fx.joystick_mode.gate.is_on(step) or not in_play_window:
                     stretch_write = 0
                     continue
-                logger.info(f"writing step {step} to i2s...")
+
+                # logger.info(f"writing step {step} to i2s...")
                 step_bytes = round(60 / midi_clock.bpm / 8 * SAMPLE_RATE_IN_HZ) * 2
                 if fx.joystick_mode.stretch.is_active():
-                    logger.info(f"stretch writing {stretch_write}:{stretch_write+step_bytes}, bytes_written={bytes_written}")
+                    # logger.info(f"stretch writing {stretch_write}:{stretch_write+step_bytes}, bytes_written={bytes_written}")
                     await write_audio(step, stretch_write, stretch_write + step_bytes)
                     stretch_write += step_bytes
                     if stretch_write + step_bytes > bytes_written:
                         stretch_write = 0
                 else:
                     stretch_write = 0
-                    logger.info(f"about to write_audio")
+                    # logger.info(f"about to write_audio")
                     await write_audio(step, 0, bytes_written)
-                logger.info(f"wrote step {step} to i2s")
+                # logger.info(f"wrote step {step} to i2s")
             elif isinstance(msg, Start):
                 midi_clock.start()
                 started = True
@@ -256,6 +262,7 @@ async def prepare_step(step):
     pitch_rate = midi_clock.bpm / current_sample.bpm
     params = StepParams(step, pitch_rate, stretch_rate)
     fx.joystick_mode.update(params)
+    log_joystick()
     if params.step is None:
         logger.info(f"step {step} params.step is None")
         return
