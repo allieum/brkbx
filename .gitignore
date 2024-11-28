@@ -4,3 +4,4 @@ tmp/*
 /.ccls-cache/
 /native/native_wav/build
 /native/native_wav/native_wav.mpy
+/.cache/
