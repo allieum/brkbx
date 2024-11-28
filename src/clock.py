@@ -4,6 +4,51 @@ from time import ticks_add, ticks_us, ticks_diff
 
 logger = utility.get_logger(__name__, "DEBUG")
 
+class InternalClock:
+    def __init__(self):
+        self.song_position = 0
+        self.play_mode = False
+        self.bpm = 143
+        self.start_ticks = None
+        self.step_count = 0
+        self.bpm_changed = lambda _: ()
+
+    def start(self):
+        logger.info("starting internal clock")
+        self.song_position = -1
+        self.prev_ticks = None
+        self.start_ticks = ticks_us()
+        self.step_count = 0
+        self.play_mode = True
+        # self.prev_ticks = ticks_us()
+
+    def stop(self):
+        """ proceess midi stop message """
+        logger.info("stopping internal clock")
+        self.play_mode = False
+
+    def predict_next_step_ticks(self):
+        ticks_per_beat = 60 / self.bpm * 1000000
+        ticks_per_step = round(ticks_per_beat / 8)
+        # logger.info(f"{self.last_step_ticks + ticks_per_step}")
+        result = ticks_add(self.start_ticks, ticks_per_step * self.step_count)
+        # logger.info(f"next step predicted for {result}")
+        return result
+
+
+    def process_clock(self, ticks) -> int | None:
+        """ update internal clock state
+        :returns which 32nd note step clock has landed on, if any
+        """
+        if ticks < self.predict_next_step_ticks() or not self.play_mode:
+            return None
+        self.song_position += 1
+        self.step_count += 1
+        return self.song_position
+
+    # todo update_bpm method which resets start_ticks and step_count, on next step (?)
+    # def update_bpm(self, bpm):
+    #     self.bpm = bpm
 
 class MidiClock:
     BPM_INTERVAL = 48
