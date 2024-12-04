@@ -127,7 +127,7 @@ async def run_internal_clock():
     internal_clock.start()
     while True:
         # todo only do this frequently if clock is running
-        await asyncio.sleep_ms(1)
+        await asyncio.sleep_ms(1 if internal_clock.play_mode else 5)
         step = internal_clock.process_clock(ticks_us())
         if step is None:
             continue
@@ -301,6 +301,7 @@ async def main():
     global current_sample, started_preparing_next_step, bytes_written
     started_preparing_next_step = False
     asyncio.create_task(midi_receive())
+    asyncio.create_task(run_internal_clock())
     rotary_position = rotary.value()
     current_sample = samples[rotary_position % len(samples)]
     prev_step = None
@@ -312,14 +313,8 @@ async def main():
             if clock and not started_preparing_next_step and (until_step := ticks_diff(clock.predict_next_step_ticks(), ticks_us()) / 1000000) <= LOOKAHEAD_SEC:
                 logger.info(f"starting to prepare step {clock.song_position + 1} {until_step}s from now")
                 started_preparing_next_step = True
-                # if prev_step and not fx.joystick_mode.has_input():
-                #     prev_step.cancel()
-                #     bytes_written = step_start_bytes + target_samples
-                    # if prev_write:
-                    #     prev_write.cancel()
                 await prepare_step(clock.song_position + 1)
 
-            # does this need to be wrapped in another async task to be worth while..... ?????
             await asyncio.sleep(0.005)
             if rotary_position != rotary.value():
                 rotary_position = rotary.value()
@@ -327,7 +322,9 @@ async def main():
                 logger.info(f"rotary postiton {rotary_position} {rotary_pressed()}")
                 logger.info(f"switched to sample {current_sample.name}")
             if not midi_clock.play_mode and not internal_clock.play_mode and fx.joystick_mode.has_input():
-                asyncio.create_task(run_internal_clock())
+                internal_clock.start()
+            elif internal_clock.play_mode and not fx.joystick_mode.has_input():
+                internal_clock.stop()
     except (KeyboardInterrupt, Exception) as e:
         print("caught exception {} {}".format(type(e).__name__, e))
         os.umount("/sd")
