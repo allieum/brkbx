@@ -1,6 +1,5 @@
 import time
 from adafruit_midi import MIDI
-from adafruit_midi.midi_continue import Continue
 from adafruit_midi.spp import SPP
 from adafruit_midi.timing_clock import TimingClock
 from adafruit_midi.start import Start
@@ -18,9 +17,11 @@ from time import ticks_us, ticks_diff
 
 from clock import InternalClock, MidiClock
 from control import joystick, rotary, rotary_pressed, log_joystick
+import control
 import fx
 from sample import BYTES_PER_SAMPLE, Sample, load_samples
 from sequence import StepParams
+from settings import RotarySetting, RotarySettings
 import utility
 
 # todo typings
@@ -216,8 +217,8 @@ midi_clock.bpm_changed = lambda _: asyncio.create_task(prepare_step(0)) if not m
 # 1) calculate offsets into file for each beat
 # 2) trigger those on the proper midi step
 # 3) figure out time stretching or w/e
-rotary_position = rotary.value()
-current_sample = samples[rotary_position % len(samples)]
+current_sample = samples[rotary.value() % len(samples)]
+rotary_settings = RotarySettings()
 
 writing_audio = False
 swriter = asyncio.StreamWriter(audio_out)
@@ -245,10 +246,14 @@ async def prepare_step(step):
     # logger.info(f"getting step {step}"
     # logger.info(f"playing samples for step {step}")
     # rate = midi_clock.bpm / current_sample.bpm
-    stretch_rate = 1
-    # stretch_rate = midi_clock.bpm / current_sample.bpm
-    # pitch_rate = 1
-    pitch_rate = midi_clock.bpm / current_sample.bpm
+    clock = get_running_clock()
+    if clock is None:
+        logger.error(f"no clock running?")
+        return
+    # stretch_rate = 1
+    stretch_rate = clock.bpm / current_sample.bpm
+    pitch_rate = 1
+    # pitch_rate = clock.bpm / current_sample.bpm
     params = StepParams(step, pitch_rate, stretch_rate)
     fx.joystick_mode.update(params)
     log_joystick()
@@ -256,7 +261,7 @@ async def prepare_step(step):
         logger.info(f"step {step} params.step is None")
         return
     chunk_samples = current_sample.get_chunk(params.step)
-    stretch_block_length = 0.030 # in seconds
+    stretch_block_length = 0.015 # in seconds
     stretch_block_input_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
     pitched_samples = round(current_sample.samples_per_chunk / params.pitch_rate)
     if stretch_block_input_samples > pitched_samples:
@@ -297,30 +302,37 @@ async def write_audio(step, start, end):
     audio_len = (end - start) / 2 / SAMPLE_RATE_IN_HZ
     logger.info(f"{step} finished writing {audio_len}s of audio")
 
+def get_running_clock():
+    clock = midi_clock if midi_clock.play_mode else internal_clock if internal_clock.play_mode else None
+    return clock
+
 async def main():
     global current_sample, started_preparing_next_step, bytes_written
     started_preparing_next_step = False
     asyncio.create_task(midi_receive())
     asyncio.create_task(run_internal_clock())
-    rotary_position = rotary.value()
-    current_sample = samples[rotary_position % len(samples)]
+    current_sample = samples[rotary.value() % len(samples)]
     prev_step = None
     until_step = None
     await prepare_step(0)
     try:
         while True:
-            clock = midi_clock if midi_clock.play_mode else internal_clock if internal_clock.play_mode else None
+            clock = get_running_clock()
             if clock and not started_preparing_next_step and (until_step := ticks_diff(clock.predict_next_step_ticks(), ticks_us()) / 1000000) <= LOOKAHEAD_SEC:
                 logger.info(f"starting to prepare step {clock.song_position + 1} {until_step}s from now")
                 started_preparing_next_step = True
                 await prepare_step(clock.song_position + 1)
 
             await asyncio.sleep(0.005)
-            if rotary_position != rotary.value():
-                rotary_position = rotary.value()
-                current_sample = samples[rotary_position % len(samples)]
-                logger.info(f"rotary postiton {rotary_position} {rotary_pressed()}")
-                logger.info(f"switched to sample {current_sample.name}")
+            for button in control.buttons:
+                button.poll()
+            if (new_val := rotary_settings.update()) is not None:
+                if rotary_settings.setting == RotarySetting.BPM:
+                    internal_clock.bpm = new_val
+                    logger.info(f"internal bpm set to {new_val}")
+                elif rotary_settings.setting == RotarySetting.SAMPLE:
+                    current_sample = samples[new_val % len(samples)]
+                    logger.info(f"switched to sample {current_sample.name}")
             if not midi_clock.play_mode and not internal_clock.play_mode and fx.joystick_mode.has_input():
                 internal_clock.start()
             elif internal_clock.play_mode and not fx.joystick_mode.has_input():

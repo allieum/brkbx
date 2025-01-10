@@ -3,6 +3,9 @@ from adafruit_simplemath import map_range
 from machine import Pin, ADC, Signal
 from rotary_irq_rp2 import RotaryIRQ
 from collections import deque
+import utility
+
+logger = utility.get_logger(__name__)
 
 JOYSTICK_X = Pin("A10")
 JOYSTICK_Y = Pin("A11")
@@ -49,5 +52,38 @@ ROT_DT = "D34"
 rotary_button = Signal(Pin("D35", Pin.IN, Pin.PULL_UP), invert=True)
 
 rotary = RotaryIRQ(ROT_CLK, ROT_DT)
+class Button:
+    def __init__(self, pin: Pin | Signal, down_cb=None, up_cb=None):
+        self.pin = pin
+        self.down_cb = down_cb
+        self.up_cb = up_cb
+        self.prev_value = self.pin.value()
+
+    def poll(self):
+        if (value := self.pin.value()) != self.prev_value:
+            if self.pin.value() is 1:
+                self.down()
+            else:
+                self.up()
+        self.prev_value = value
+
+    def down(self):
+        logger.info(f"button {self.pin} pressed")
+        if self.down_cb is not None:
+            self.down_cb()
+
+    def up(self):
+        logger.info(f"button {self.pin} released")
+        if self.up_cb is not None:
+            self.up_cb()
+
+
+buttons = [
+    Button(Signal(Pin("D1", Pin.IN, Pin.PULL_UP), invert=True)),
+    Button(Signal(Pin("D2", Pin.IN, Pin.PULL_UP), invert=True)),
+    Button(Signal(Pin("D3", Pin.IN, Pin.PULL_UP), invert=True)),
+    Button(Signal(Pin("D4", Pin.IN, Pin.PULL_UP), invert=True)),
+]
+
 def rotary_pressed():
     return rotary_button.value() is 1
