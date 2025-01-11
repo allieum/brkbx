@@ -7,12 +7,42 @@ import utility
 
 logger = utility.get_logger(__name__)
 
+KNOB1 = Pin("A0")
+KNOB2 = Pin("A2")
+KNOB3 = Pin("A3")
+KNOB4 = Pin("A1")
+
 JOYSTICK_X = Pin("A10")
 JOYSTICK_Y = Pin("A11")
 JOYSTICK_SEL = Pin("D30", Pin.IN, Pin.PULL_UP)
 
 ADC_MAX = 65536
 JOYSTICK_RECORD_LEN = 32
+
+class Button:
+    def __init__(self, pin: Pin | Signal, down_cb=None, up_cb=None):
+        self.pin = pin
+        self.down_cb = down_cb
+        self.up_cb = up_cb
+        self.prev_value = self.pin.value()
+
+    def poll(self):
+        if (value := self.pin.value()) != self.prev_value:
+            if self.pin.value() is 1:
+                self.down()
+            else:
+                self.up()
+        self.prev_value = value
+
+    def down(self):
+        logger.info(f"button {self.pin} pressed")
+        if self.down_cb is not None:
+            self.down_cb()
+
+    def up(self):
+        logger.info(f"button {self.pin} released")
+        if self.up_cb is not None:
+            self.up_cb()
 
 
 class Joystick:
@@ -49,34 +79,8 @@ def record_current_history(step):
 
 ROT_CLK = "D33"
 ROT_DT = "D34"
-rotary_button = Signal(Pin("D35", Pin.IN, Pin.PULL_UP), invert=True)
-
-rotary = RotaryIRQ(ROT_CLK, ROT_DT)
-class Button:
-    def __init__(self, pin: Pin | Signal, down_cb=None, up_cb=None):
-        self.pin = pin
-        self.down_cb = down_cb
-        self.up_cb = up_cb
-        self.prev_value = self.pin.value()
-
-    def poll(self):
-        if (value := self.pin.value()) != self.prev_value:
-            if self.pin.value() is 1:
-                self.down()
-            else:
-                self.up()
-        self.prev_value = value
-
-    def down(self):
-        logger.info(f"button {self.pin} pressed")
-        if self.down_cb is not None:
-            self.down_cb()
-
-    def up(self):
-        logger.info(f"button {self.pin} released")
-        if self.up_cb is not None:
-            self.up_cb()
-
+rotary_button_1 = Button(Signal(Pin("D35", Pin.IN, Pin.PULL_UP), invert=True))
+rotary_button_2 = Button(Signal(Pin("D36", Pin.IN, Pin.PULL_UP), invert=True))
 
 buttons = [
     Button(Signal(Pin("D1", Pin.IN, Pin.PULL_UP), invert=True)),
@@ -85,5 +89,22 @@ buttons = [
     Button(Signal(Pin("D4", Pin.IN, Pin.PULL_UP), invert=True)),
 ]
 
-def rotary_pressed():
-    return rotary_button.value() is 1
+class RotaryKnob:
+    def __init__(self, enc: RotaryIRQ, button: Button):
+        self.enc = enc
+        self.button = button
+        self.prev_value = self.enc.value()
+
+    def pressed(self):
+        return self.button.pin.value() is 1
+
+    def poll(self) -> int:
+        delta = (value := self.enc.value()) - self.prev_value
+        self.prev_value = value
+        return delta
+
+    def value(self):
+        return self.enc.value()
+
+rotary1 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT), rotary_button_1)
+rotary2 = RotaryKnob(RotaryIRQ("D32", "D31", pull_up=True), rotary_button_2)

@@ -21,7 +21,7 @@ class Pitch:
 
 class Gate:
     def __init__(self):
-        self.period = 4
+        self.period: int = 4
         self.ratio = 1.0
     def is_on(self, step):
         on_steps = self.ratio * self.period
@@ -113,7 +113,7 @@ class GateRepeatMode(JoystickMode):
 
         self.gate.ratio = 1 if x > 0 else 1 + x
         self.gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
-        self.gate.period /= 2
+        self.gate.period //= 2
         # TODO !play_step could be expressed as params.step = None
         # if params.step:
         #     params.play_step = self.gate.is_on(params.step)

@@ -31,7 +31,9 @@ class StreamReader:
     drain: Any
 
 class StreamWriter:
-    def __init__(self, *argv, **kwargs) -> None: ...
+    def __init__(self, *argv, **kwargs) -> None:
+        self.out_buf: Any = None
+        ...
     def close(self, *args, **kwargs) -> Any: ...
     read: Any
     readinto: Any

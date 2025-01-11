@@ -1,4 +1,4 @@
-from control import rotary, rotary_pressed
+from control import RotaryKnob, rotary1
 import typing
 import utility
 
@@ -12,11 +12,12 @@ class RotarySettings:
     settings = [RotarySetting.SAMPLE, RotarySetting.BPM]
     values = [0, 120]
 
-    def __init__(self):
+    def __init__(self, rotary: RotaryKnob):
         self.setting = RotarySetting.SAMPLE
         self.was_pressed = False
         self.prev_value = 0
         self.position_offset = 0
+        self.rotary = rotary
 
         #
         # example:
@@ -29,13 +30,13 @@ class RotarySettings:
 #
 #
     def update(self) -> typing.Any | None:
-        if rotary_pressed() and not self.was_pressed:
+        if self.rotary.pressed() and not self.was_pressed:
             self.was_pressed = True
             self.setting = (self.setting + 1) % len(self.settings)
             logger.info(f"setting changed to {self.setting}")
-        if not rotary_pressed():
+        if not self.rotary.pressed():
             self.was_pressed = False
-        current = rotary.value()
+        current = self.rotary.value()
         delta = current - self.prev_value
         if delta == 0:
             return

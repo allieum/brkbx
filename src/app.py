@@ -1,5 +1,6 @@
 import time
 from adafruit_midi import MIDI
+from adafruit_midi.midi_continue import Continue
 from adafruit_midi.spp import SPP
 from adafruit_midi.timing_clock import TimingClock
 from adafruit_midi.start import Start
@@ -16,7 +17,7 @@ from sgtl5000 import CODEC
 from time import ticks_us, ticks_diff
 
 from clock import InternalClock, MidiClock
-from control import joystick, rotary, rotary_pressed, log_joystick
+from control import joystick, rotary1, log_joystick
 import control
 import fx
 from sample import BYTES_PER_SAMPLE, Sample, load_samples
@@ -24,7 +25,6 @@ from sequence import StepParams
 from settings import RotarySetting, RotarySettings
 import utility
 
-# todo typings
 import native_wav
 
 logger = utility.get_logger(__name__)
@@ -217,8 +217,8 @@ midi_clock.bpm_changed = lambda _: asyncio.create_task(prepare_step(0)) if not m
 # 1) calculate offsets into file for each beat
 # 2) trigger those on the proper midi step
 # 3) figure out time stretching or w/e
-current_sample = samples[rotary.value() % len(samples)]
-rotary_settings = RotarySettings()
+current_sample = samples[rotary1.value() % len(samples)]
+rotary_settings = RotarySettings(rotary1)
 
 writing_audio = False
 swriter = asyncio.StreamWriter(audio_out)
@@ -236,7 +236,7 @@ target_samples = 0
 # write_test()
 
 
-async def prepare_step(step):
+async def prepare_step(step) -> None:
     global target_samples, writing_audio, last_step, bytes_written, step_start_bytes
     if writing_audio:
         return
@@ -311,7 +311,7 @@ async def main():
     started_preparing_next_step = False
     asyncio.create_task(midi_receive())
     asyncio.create_task(run_internal_clock())
-    current_sample = samples[rotary.value() % len(samples)]
+    current_sample = samples[rotary1.value() % len(samples)]
     prev_step = None
     until_step = None
     await prepare_step(0)
@@ -333,6 +333,10 @@ async def main():
                 elif rotary_settings.setting == RotarySetting.SAMPLE:
                     current_sample = samples[new_val % len(samples)]
                     logger.info(f"switched to sample {current_sample.name}")
+            if (delta := control.rotary2.poll()) != 0:
+                new_bpm = internal_clock.bpm + delta
+                logger.info(f"internal bpm set to {new_bpm}")
+                internal_clock.bpm = new_bpm
             if not midi_clock.play_mode and not internal_clock.play_mode and fx.joystick_mode.has_input():
                 internal_clock.start()
             elif internal_clock.play_mode and not fx.joystick_mode.has_input():

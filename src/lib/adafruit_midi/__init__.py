@@ -30,6 +30,7 @@ try:
 except ImportError:
     pass
 
+from asyncio import StreamReader
 from .midi_message import MIDIMessage
 import time
 
@@ -59,7 +60,7 @@ class MIDI:
 
     def __init__(
         self,
-        midi_in: Optional[BinaryIO] = None,
+        midi_in: Optional[StreamReader] = None,
         midi_out: Optional[BinaryIO] = None,
         *,
         in_channel: Optional[Union[int, Tuple[int, ...]]] = None,
@@ -128,6 +129,8 @@ class MIDI:
         if len(self._in_buf) < self._in_buf_size:
             # EDIT to allow passing in bytes from async task
             # bytes_in = data if data is not None else self._midi_in.read(self._in_buf_size - len(self._in_buf))
+            if self._midi_in is None:
+                return []
             bytes_in = await self._midi_in.read(self._in_buf_size - len(self._in_buf))
             # print(f"{time.ticks_us() / 1000000} receive midi msg")
             if bytes_in:
@@ -192,4 +195,5 @@ class MIDI:
     def _send(self, packet: bytes, num: int) -> None:
         if self._debug:
             print("Sending: ", [hex(i) for i in packet[:num]])
-        self._midi_out.write(packet, num)
+        if self._midi_out is not None:
+            self._midi_out.write(packet, num)
