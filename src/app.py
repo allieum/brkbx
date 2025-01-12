@@ -56,10 +56,10 @@ async def play_step(step, bpm):
     global started_preparing_next_step, last_input_step, stretch_write
     # put the rest of this in function.
     started_preparing_next_step = False
-    if fx.joystick_mode.has_input(step):
-        last_input_step = step
-    in_play_window = step - last_input_step < PLAY_WINDOW
-    if not fx.joystick_mode.gate.is_on(step) or not in_play_window:
+    # if fx.joystick_mode.has_input(step):
+    #     last_input_step = step
+    # in_play_window = step - last_input_step < PLAY_WINDOW
+    if not fx.joystick_mode.gate.is_on(step):
         stretch_write = 0
         return
 
@@ -125,7 +125,6 @@ async def midi_receive():
         # await asyncio.sleep_ms(5)
 internal_clock = InternalClock()
 async def run_internal_clock():
-    internal_clock.start()
     while True:
         # todo only do this frequently if clock is running
         await asyncio.sleep_ms(1 if internal_clock.play_mode else 5)
@@ -255,6 +254,8 @@ async def prepare_step(step) -> None:
     pitch_rate = 1
     # pitch_rate = clock.bpm / current_sample.bpm
     params = StepParams(step, pitch_rate, stretch_rate)
+    if button_latch.is_active():
+        params.step = button_latch.get(params.step, 32)
     fx.joystick_mode.update(params)
     log_joystick()
     if params.step is None:
@@ -306,6 +307,12 @@ def get_running_clock():
     clock = midi_clock if midi_clock.play_mode else internal_clock if internal_clock.play_mode else None
     return clock
 
+
+button_latch = fx.Latch()
+for i, button in enumerate(control.buttons):
+    button.down_cb = lambda: button_latch.get(i * 8, 32)
+    button.up_cb = lambda: button_latch.cancel()
+
 async def main():
     global current_sample, started_preparing_next_step, bytes_written
     started_preparing_next_step = False
@@ -314,6 +321,7 @@ async def main():
     current_sample = samples[rotary1.value() % len(samples)]
     prev_step = None
     until_step = None
+    control.rotary2.button.down_cb = internal_clock.stop
     await prepare_step(0)
     try:
         while True:
@@ -324,8 +332,6 @@ async def main():
                 await prepare_step(clock.song_position + 1)
 
             await asyncio.sleep(0.005)
-            for button in control.buttons:
-                button.poll()
             if (new_val := rotary_settings.update()) is not None:
                 if rotary_settings.setting == RotarySetting.BPM:
                     internal_clock.bpm = new_val
@@ -337,10 +343,8 @@ async def main():
                 new_bpm = internal_clock.bpm + delta
                 logger.info(f"internal bpm set to {new_bpm}")
                 internal_clock.bpm = new_bpm
-            if not midi_clock.play_mode and not internal_clock.play_mode and fx.joystick_mode.has_input():
+            if not midi_clock.play_mode and not internal_clock.play_mode and any([b.poll() for b in control.buttons]):
                 internal_clock.start()
-            elif internal_clock.play_mode and not fx.joystick_mode.has_input():
-                internal_clock.stop()
     except (KeyboardInterrupt, Exception) as e:
         print("caught exception {} {}".format(type(e).__name__, e))
         os.umount("/sd")

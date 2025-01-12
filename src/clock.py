@@ -24,6 +24,8 @@ class InternalClock:
 
     def stop(self):
         """ proceess midi stop message """
+        if not self.play_mode:
+            return
         logger.info("stopping internal clock")
         self.play_mode = False
 

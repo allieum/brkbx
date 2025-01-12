@@ -45,6 +45,9 @@ class Latch:
         self.count += 1
         return self.step + step % length
 
+    def is_active(self):
+        return self.step is not None
+
     def cancel(self):
         self.step = None
         self.count = 0

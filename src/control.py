@@ -26,13 +26,15 @@ class Button:
         self.up_cb = up_cb
         self.prev_value = self.pin.value()
 
-    def poll(self):
+    def poll(self) -> bool | None:
+        new_state = None
         if (value := self.pin.value()) != self.prev_value:
-            if self.pin.value() is 1:
+            if new_state := self.pin.value() is 1:
                 self.down()
             else:
                 self.up()
         self.prev_value = value
+        return new_state
 
     def down(self):
         logger.info(f"button {self.pin} pressed")
@@ -43,7 +45,6 @@ class Button:
         logger.info(f"button {self.pin} released")
         if self.up_cb is not None:
             self.up_cb()
-
 
 class Joystick:
     def __init__(self, x: Pin, y: Pin, sel: Pin):
@@ -101,6 +102,7 @@ class RotaryKnob:
     def poll(self) -> int:
         delta = (value := self.enc.value()) - self.prev_value
         self.prev_value = value
+        self.button.poll()
         return delta
 
     def value(self):
