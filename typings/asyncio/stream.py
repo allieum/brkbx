@@ -66,10 +66,11 @@ class StreamReader:
 
 class StreamWriter:
     """"""
+    @property
+    def out_buf(self) -> Any: ...
 
     def __init__(self, *argv, **kwargs) -> None:
         """"""
-        self.out_buf: Any = None
         ...
 
     def close(self, *args, **kwargs) -> Any:
