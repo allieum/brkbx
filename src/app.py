@@ -219,9 +219,7 @@ midi_clock.bpm_changed = lambda _: asyncio.create_task(prepare_step(0)) if not m
 current_sample = samples[rotary1.value() % len(samples)]
 rotary_settings = RotarySettings(rotary1)
 
-writing_audio = False
 swriter = asyncio.StreamWriter(audio_out)
-last_step = ticks_us()
 audio_out_buffer = bytearray(22050)
 audio_out_mv = memoryview(audio_out_buffer)
 bytes_written = 0
@@ -236,9 +234,7 @@ target_samples = 0
 
 
 async def prepare_step(step) -> None:
-    global target_samples, writing_audio, last_step, bytes_written, step_start_bytes
-    if writing_audio:
-        return
+    global target_samples, bytes_written, step_start_bytes
     ticks = ticks_us()
     # logger.info(f"{ticks_diff(ticks, last_step) / 1000000}")
     last_step = ticks
@@ -248,14 +244,17 @@ async def prepare_step(step) -> None:
     clock = get_running_clock()
     if clock is None:
         logger.error(f"no clock running?")
+        bpm = 143
         return
+    else:
+        bpm = clock.bpm
     # stretch_rate = 1
-    stretch_rate = clock.bpm / current_sample.bpm
+    stretch_rate = bpm / current_sample.bpm
     pitch_rate = 1
     # pitch_rate = clock.bpm / current_sample.bpm
     params = StepParams(step, pitch_rate, stretch_rate)
     if button_latch.is_active():
-        params.step = button_latch.get(params.step, 32)
+        params.step = button_latch.get(params.step, 8)
     fx.joystick_mode.update(params)
     log_joystick()
     if params.step is None:
@@ -290,27 +289,29 @@ async def prepare_step(step) -> None:
     FADE_SAMPLES = 10
     prev_length = None
     prev_write = write_begin
-    logger.info(f"preamble for {step} took {ticks_diff(write_begin, ticks) / 1000000}s")
+    logger.debug(f"preamble for {step} took {ticks_diff(write_begin, ticks) / 1000000}s")
     # logger.info(f"{step_samples} vs {target_samples}")
     if params.play_step:
         bytes_written = native_wav.write(audio_out_buffer, chunk_samples, stretch_block_input_samples, stretch_block_output_samples, target_samples, pitched_samples, params.pitch_rate)
-        logger.info(f"finished writing {step} res={bytes_written}, took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
+        logger.debug(f"finished writing {step} res={bytes_written}, took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
 
 async def write_audio(step, start, end):
     swriter.out_buf = audio_out_mv[start: end]
-    logger.info(f"{step} writing audio from {start} to {end}")
+    logger.debug(f"{step} writing audio from {start} to {end}")
     await swriter.drain()
     audio_len = (end - start) / 2 / SAMPLE_RATE_IN_HZ
-    logger.info(f"{step} finished writing {audio_len}s of audio")
+    logger.debug(f"{step} finished writing {audio_len}s of audio")
 
 def get_running_clock():
     clock = midi_clock if midi_clock.play_mode else internal_clock if internal_clock.play_mode else None
     return clock
 
+def create_button_down(i):
+    return lambda: button_latch.get(i * 8, 8)
 
 button_latch = fx.Latch()
 for i, button in enumerate(control.buttons):
-    button.down_cb = lambda: button_latch.get(i * 8, 32)
+    button.down_cb = create_button_down(i)
     button.up_cb = lambda: button_latch.cancel()
 
 async def main():
@@ -327,7 +328,7 @@ async def main():
         while True:
             clock = get_running_clock()
             if clock and not started_preparing_next_step and (until_step := ticks_diff(clock.predict_next_step_ticks(), ticks_us()) / 1000000) <= LOOKAHEAD_SEC:
-                logger.info(f"starting to prepare step {clock.song_position + 1} {until_step}s from now")
+                logger.debug(f"starting to prepare step {clock.song_position + 1} {until_step}s from now")
                 started_preparing_next_step = True
                 await prepare_step(clock.song_position + 1)
 
@@ -343,7 +344,7 @@ async def main():
                 new_bpm = internal_clock.bpm + delta
                 logger.info(f"internal bpm set to {new_bpm}")
                 internal_clock.bpm = new_bpm
-            if not midi_clock.play_mode and not internal_clock.play_mode and any([b.poll() for b in control.buttons]):
+            if any([b.poll() for b in control.buttons]) and not midi_clock.play_mode and not internal_clock.play_mode:
                 internal_clock.start()
     except (KeyboardInterrupt, Exception) as e:
         print("caught exception {} {}".format(type(e).__name__, e))

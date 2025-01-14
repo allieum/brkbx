@@ -20,11 +20,15 @@ ADC_MAX = 65536
 JOYSTICK_RECORD_LEN = 32
 
 class Button:
+    id = 0
+
     def __init__(self, pin: Pin | Signal, down_cb=None, up_cb=None):
         self.pin = pin
         self.down_cb = down_cb
         self.up_cb = up_cb
         self.prev_value = self.pin.value()
+        self.id = Button.id
+        Button.id += 1
 
     def poll(self) -> bool | None:
         new_state = None
@@ -37,12 +41,12 @@ class Button:
         return new_state
 
     def down(self):
-        logger.info(f"button {self.pin} pressed")
+        logger.info(f"button {self.id} pressed")
         if self.down_cb is not None:
             self.down_cb()
 
     def up(self):
-        logger.info(f"button {self.pin} released")
+        logger.info(f"button {self.id} released")
         if self.up_cb is not None:
             self.up_cb()
 

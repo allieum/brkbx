@@ -1,10 +1,8 @@
 #+title: Notes
 
-* native .mpy module
-** A native .mpy module is built using the mpy_ld.py tool, which is found in the tools/ directory of the project. This tool takes a set of object files (.o files) and links them together to create a native .mpy files. It requires CPython 3 and the library pyelftools v0.25 or greater.
-** So, if your C code has writable data, make sure the data is defined globally, without an initialiser, and only written to within functions.
-
-
+* forsure todo
+** 44.1k samples
+** big sample library
 
 * ideas!
 ** joystick recording: when no input, loop the last n bars of input
@@ -14,10 +12,17 @@
 * deferred matters
 ** auto code formatting
 ** noisy I2S: sending zeros during silence? deinit i2s?
+*** brain blast: profile noise and do the inverse fft subtract trick
+**** probably would only work post-brkbx? maybe worth better audio shield instead
 
 
 
 * archive initial notes
+** native .mpy module
+*** A native .mpy module is built using the mpy_ld.py tool, which is found in the tools/ directory of the project. This tool takes a set of object files (.o files) and links them together to create a native .mpy files. It requires CPython 3 and the library pyelftools v0.25 or greater.
+*** So, if your C code has writable data, make sure the data is defined globally, without an initialiser, and only written to within functions.
+
+
 ** breakbox 1.0 functionality
 *** looping samples of various lengths
 *** internal clock & midi in

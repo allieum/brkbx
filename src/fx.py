@@ -33,15 +33,21 @@ class Latch:
         self.reps: int | None = None
         # self.length = 1
         self.count = 0
+        self.start_step = None
 
-    def get(self, step: int | None, length: int) -> int:
+    def get(self, step: int | None, length: int, start_step = None) -> int:
         if step is None:
             return self.step if self.step else 0
         if self.step is None or self.reps and self.count >= self.reps * length:
             # self.length = length
-            self.step = step - step % 4
+            self.step = step - step % 2
+            logger.info(f"latching on step {step} -> quantized to {self.step}")
             # self.step = step - step % length
             self.count = 0
+            if start_step:
+                self.start_step = start_step
+        if self.start_step is None:
+            self.start_step = step
         self.count += 1
         return self.step + step % length
 
@@ -49,8 +55,11 @@ class Latch:
         return self.step is not None
 
     def cancel(self):
+        if not self.is_active():
+            return
         self.step = None
         self.count = 0
+        logger.info("latch cancelled")
 
 class Stretch:
     def __init__(self) -> None:
@@ -95,7 +104,7 @@ class GateRepeatMode(JoystickMode):
             record_current_history(params.step)
         if x > 0.2:
             length = 4 if x > 0.9 else 2 if x > 0.5 else 1
-            params.step = self.latch.get(params.step, length)
+            params.step = self.latch.get(params.step, length, params.step)
             if params.step % length != 0:
                 params.set_pitch(self.pitch.get(0))
             elif y < -0.7:
@@ -144,10 +153,10 @@ class PitchStretchMode(JoystickMode):
 
         if y < -0.5:
             params.set_pitch(self.pitch.get(+1))
-            params.step = self.latch.get(params.step, 1)
+            params.step = self.latch.get(params.step, 1, params.step)
         elif y > 0.5:
             params.set_pitch(self.pitch.get(-1))
-            params.step = self.latch.get(params.step, 1)
+            params.step = self.latch.get(params.step, 1, params.step)
         else:
             self.pitch.cancel()
             self.latch.cancel()
