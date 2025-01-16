@@ -35,21 +35,25 @@ class Latch:
         self.count = 0
         self.start_step = None
 
-    def get(self, step: int | None, length: int, start_step = None) -> int:
+    def activate(self, step: int, quantize=True):
+        # self.length = length
+        delta = step % 2 if quantize else 0
+        self.step = step - delta
+        logger.info(f"latching on step {step} -> quantized to {self.step}")
+        # self.step = step - step % length
+        self.count = 0
+
+    def get(self, step: int | None, length: int, start_step = None, quantize=True) -> int:
         if step is None:
             return self.step if self.step else 0
         if self.step is None or self.reps and self.count >= self.reps * length:
-            # self.length = length
-            self.step = step - step % 2
-            logger.info(f"latching on step {step} -> quantized to {self.step}")
-            # self.step = step - step % length
-            self.count = 0
-            if start_step:
-                self.start_step = start_step
+            self.activate(step, quantize)
+        if start_step:
+            self.start_step = start_step
         if self.start_step is None:
             self.start_step = step
         self.count += 1
-        return self.step + step % length
+        return self.step + (step - self.start_step) % length
 
     def is_active(self):
         return self.step is not None

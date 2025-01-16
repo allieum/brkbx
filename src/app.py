@@ -306,13 +306,25 @@ def get_running_clock():
     clock = midi_clock if midi_clock.play_mode else internal_clock if internal_clock.play_mode else None
     return clock
 
+def clock_running():
+    return get_running_clock() is not None
+
 def create_button_down(i):
-    return lambda: button_latch.get(i * 8, 8)
+    def f():
+        if not clock_running():
+            internal_clock.start()
+        button_latch.activate(i * 8, False)
+    return f
+
+def button_up():
+    if internal_clock.play_mode:
+        internal_clock.stop()
+    button_latch.cancel()
 
 button_latch = fx.Latch()
 for i, button in enumerate(control.buttons):
     button.down_cb = create_button_down(i)
-    button.up_cb = lambda: button_latch.cancel()
+    button.up_cb = button_up
 
 async def main():
     global current_sample, started_preparing_next_step, bytes_written

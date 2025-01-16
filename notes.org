@@ -1,6 +1,7 @@
 #+title: Notes
 
 * forsure todo
+** recreate original breakbox button logics to cancel the keyup action
 ** 44.1k samples
 ** big sample library
 
