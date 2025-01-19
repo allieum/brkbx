@@ -19,6 +19,30 @@ JOYSTICK_SEL = Pin("D30", Pin.IN, Pin.PULL_UP)
 ADC_MAX = 65536
 JOYSTICK_RECORD_LEN = 32
 
+class Knob:
+    def __init__(self, pin: Pin, start_val, end_val, continuous: bool):
+        self.adc = ADC(pin)
+        self.start_val = start_val
+        self.end_val = end_val
+        self.continuous = continuous
+
+    def value(self):
+        val = map_range(self.adc.read_u16(), 0, ADC_MAX, self.start_val, self.end_val)
+        if not self.continuous:
+            val = round(val)
+        return val
+
+class SelectorKnob():
+    def __init__(self, pin: Pin, choices):
+        self.choices = choices
+        self.knob = Knob(pin, 0, len(choices) - 1, continuous=False)
+
+    def value(self):
+        return self.choices[self.knob.value()]
+
+latch_length_knob = SelectorKnob(KNOB4, [1, 2, 4, 8, 16, 32])
+
+
 class Button:
     id = 0
 
@@ -49,6 +73,9 @@ class Button:
         logger.info(f"button {self.id} released")
         if self.up_cb is not None:
             self.up_cb()
+
+    def pressed(self):
+        return self.pin.value() is 1
 
 class Joystick:
     def __init__(self, x: Pin, y: Pin, sel: Pin):

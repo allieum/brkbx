@@ -254,7 +254,7 @@ async def prepare_step(step) -> None:
     # pitch_rate = clock.bpm / current_sample.bpm
     params = StepParams(step, pitch_rate, stretch_rate)
     if button_latch.is_active():
-        params.step = button_latch.get(params.step, 8)
+        params.step = button_latch.get(params.step, control.latch_length_knob.value())
     fx.joystick_mode.update(params)
     log_joystick()
     if params.step is None:
@@ -309,16 +309,23 @@ def get_running_clock():
 def clock_running():
     return get_running_clock() is not None
 
+ephemeral_start = False
 def create_button_down(i):
     def f():
+        global ephemeral_start
         if not clock_running():
+            ephemeral_start = True
             internal_clock.start()
         button_latch.activate(i * 8, False)
     return f
 
 def button_up():
-    if internal_clock.play_mode:
+    global ephemeral_start
+    if any(button.pressed() for button in control.buttons):
+        return
+    if internal_clock.play_mode and ephemeral_start:
         internal_clock.stop()
+        ephemeral_start = False
     button_latch.cancel()
 
 button_latch = fx.Latch()
@@ -334,7 +341,7 @@ async def main():
     current_sample = samples[rotary1.value() % len(samples)]
     prev_step = None
     until_step = None
-    control.rotary2.button.down_cb = internal_clock.stop
+    control.rotary2.button.down_cb = internal_clock.toggle
     await prepare_step(0)
     try:
         while True:

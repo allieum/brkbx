@@ -42,6 +42,7 @@ class Latch:
         logger.info(f"latching on step {step} -> quantized to {self.step}")
         # self.step = step - step % length
         self.count = 0
+        self.start_step = None
 
     def get(self, step: int | None, length: int, start_step = None, quantize=True) -> int:
         if step is None:

@@ -29,6 +29,12 @@ class InternalClock:
         logger.info("stopping internal clock")
         self.play_mode = False
 
+    def toggle(self):
+        if self.play_mode:
+            self.stop()
+        else:
+            self.start()
+
     def predict_next_step_ticks(self):
         ticks_per_beat = 60 / self.bpm * 1000000
         ticks_per_step = round(ticks_per_beat / 8)
