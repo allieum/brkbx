@@ -5,6 +5,9 @@
 ** 44.1k samples
 ** big sample library
 
+* bugs !
+** when internal bpm goes up, step repeat timing gets fucked?
+
 * ideas!
 ** joystick recording: when no input, loop the last n bars of input
 ** click joystick to change modes, each of which modifies "step params" in a generic way

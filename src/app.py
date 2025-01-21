@@ -316,7 +316,7 @@ def create_button_down(i):
         if not clock_running():
             ephemeral_start = True
             internal_clock.start()
-        button_latch.activate(i * 8, False)
+        button_latch.activate(i * 8, quantize=not ephemeral_start)
     return f
 
 def button_up():

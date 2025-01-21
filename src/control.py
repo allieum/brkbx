@@ -40,7 +40,8 @@ class SelectorKnob():
     def value(self):
         return self.choices[self.knob.value()]
 
-latch_length_knob = SelectorKnob(KNOB4, [1, 2, 4, 8, 16, 32])
+latch_length_knob = SelectorKnob(KNOB4, [1, 2, 3, 4, 6, 8, 16, 32])
+gate_knob = Knob(KNOB2, 1, 0, continuous=True)
 
 
 class Button:

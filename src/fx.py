@@ -1,3 +1,4 @@
+import control
 from control import joystick, joystick_recording, record_current_history
 from sequence import StepParams
 from sample import CHUNKS
@@ -98,7 +99,7 @@ class JoystickMode:
 
 class GateRepeatMode(JoystickMode):
     def __init__(self):
-        self.latch = Latch()
+        # self.latch = Latch()
         self.gate = Gate()
         self.pitch = Pitch()
         self.stretch = Stretch()
@@ -107,30 +108,33 @@ class GateRepeatMode(JoystickMode):
         x, y = joystick.position(params.step)
         if joystick.pressed():
             record_current_history(params.step)
-        if x > 0.2:
-            length = 4 if x > 0.9 else 2 if x > 0.5 else 1
-            params.step = self.latch.get(params.step, length, params.step)
-            if params.step % length != 0:
-                params.set_pitch(self.pitch.get(0))
-            elif y < -0.7:
-                params.set_pitch(self.pitch.get(-1))
-                # self.latch.reps = 4
-            # elif y < -0.2:
-            #     params.set_pitch(self.pitch.get(-1, limit=length * 4))
-            elif y > 0.7:
-                params.set_pitch(self.pitch.get(+1))
-            # elif y > 0.2:
-            #     params.set_pitch(self.pitch.get(+1, limit=length * 4))
-                # self.latch.reps = 2
-            else:
-                self.latch.reps = None
+        # length = 4 if x > 0.9 else 2 if x > 0.5 else 1
+        length = control.latch_length_knob.value()
+        # params.step = self.latch.get(params.step, length, params.step)
+        if params.step % length != 0:
+            params.set_pitch(self.pitch.get(0))
+        elif y < -0.7:
+            params.set_pitch(self.pitch.get(-1))
+            # self.latch.reps = 4
+        # elif y < -0.2:
+        #     params.set_pitch(self.pitch.get(-1, limit=length * 4))
+        elif y > 0.7:
+            params.set_pitch(self.pitch.get(+1))
+        # elif y > 0.2:
+        #     params.set_pitch(self.pitch.get(+1, limit=length * 4))
+            # self.latch.reps = 2
+        # else:
+            # self.latch.reps = None
         else:
-            self.latch.cancel()
+            # self.latch.cancel()
             self.pitch.cancel()
 
-        self.gate.ratio = 1 if x > 0 else 1 + x
-        self.gate.period = 2 if y < -0.5 else 8 if y > 0.5 else 4
-        self.gate.period //= 2
+        # self.gate.ratio = 1 if x > 0 else 1 + x
+        self.gate.ratio = control.gate_knob.value()
+        self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else 8
+        if any(b.pressed() for b in control.buttons):
+            self.gate.period = length
+        # self.gate.period //= 2
         # TODO !play_step could be expressed as params.step = None
         # if params.step:
         #     params.play_step = self.gate.is_on(params.step)
