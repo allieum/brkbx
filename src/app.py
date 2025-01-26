@@ -254,7 +254,7 @@ async def prepare_step(step) -> None:
     # pitch_rate = clock.bpm / current_sample.bpm
     params = StepParams(step, pitch_rate, stretch_rate)
     if button_latch.is_active():
-        params.step = button_latch.get(params.step, control.latch_length_knob.value())
+        params.step = button_latch.get(params.step, control.latch_length_fader.value())
     fx.joystick_mode.update(params)
     log_joystick()
     if params.step is None:

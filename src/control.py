@@ -22,7 +22,7 @@ FADER2 = Pin("A13")
 ADC_MAX = 65536
 JOYSTICK_RECORD_LEN = 32
 
-class Knob:
+class Pot:
     def __init__(self, pin: Pin, start_val, end_val, continuous: bool):
         self.adc = ADC(pin)
         self.start_val = start_val
@@ -35,16 +35,17 @@ class Knob:
             val = round(val)
         return val
 
-class SelectorKnob():
+class SelectorPot():
     def __init__(self, pin: Pin, choices):
         self.choices = choices
-        self.knob = Knob(pin, 0, len(choices) - 1, continuous=False)
+        self.knob = Pot(pin, 0, len(choices) - 1, continuous=False)
 
     def value(self):
         return self.choices[self.knob.value()]
 
-latch_length_knob = SelectorKnob(KNOB4, [1, 2, 3, 4, 6, 8, 16, 32])
-gate_knob = Knob(KNOB2, 1, 0, continuous=True)
+gate_fader = Pot(FADER1, 1, 0, continuous=True)
+latch_length_fader = SelectorPot(FADER2, [1, 2, 3, 4, 6, 8, 16, 32])
+
 
 
 class Button:

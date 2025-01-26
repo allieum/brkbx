@@ -109,7 +109,7 @@ class GateRepeatMode(JoystickMode):
         if joystick.pressed():
             record_current_history(params.step)
         # length = 4 if x > 0.9 else 2 if x > 0.5 else 1
-        length = control.latch_length_knob.value()
+        length = control.latch_length_fader.value()
         # params.step = self.latch.get(params.step, length, params.step)
         if params.step % length != 0:
             params.set_pitch(self.pitch.get(0))
@@ -130,7 +130,7 @@ class GateRepeatMode(JoystickMode):
             self.pitch.cancel()
 
         # self.gate.ratio = 1 if x > 0 else 1 + x
-        self.gate.ratio = control.gate_knob.value()
+        self.gate.ratio = control.gate_fader.value()
         self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else 8
         if any(b.pressed() for b in control.buttons):
             self.gate.period = length
