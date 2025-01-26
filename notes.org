@@ -4,6 +4,8 @@
 ** use slider for step repeat length instead of knob
 ** 44.1k samples
 ** big sample library
+*** implement sample length detection
+*** onboard fav / "projects" to combine samples ???
 
 * bugs !
 ** when internal bpm goes up, step repeat timing gets fucked?
