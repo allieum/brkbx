@@ -35,7 +35,7 @@ def find_wav_data(wav_file) -> Tuple[int, int]:
 # NOTE: could read the fmt chunk to validate these, for now just assume
 CHANNELS = 1
 BYTES_PER_SAMPLE = 2
-SAMPLE_RATE = 22050
+SAMPLE_RATE = 44100
 CHUNKS = 32
 
 
@@ -55,7 +55,8 @@ class Sample:
 
         # crude assumption, can make better guess based on length and likely bpm range
         total_beats = 4
-        self.bpm = round(total_beats / length * 60)
+        # self.bpm = round(total_beats / length * 60)
+        self.bpm = total_beats / length * 60
         logger.info(f"calculated bpm is {self.bpm} for {wav_filename}")
 
         logger.info(f"{nsamples} total samples, {self.chunk_size} bytes per chunk")
@@ -73,5 +74,5 @@ class Sample:
 
 
 def load_samples(folder: str) -> List[Sample]:
-    files = sorted(os.listdir(folder))
+    files = sorted(os.listdir(folder))[:20]
     return [Sample(f"{folder}/{wav}") for wav in files if ".wav" in wav]

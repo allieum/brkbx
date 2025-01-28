@@ -5,3 +5,4 @@ tmp/*
 /native/native_wav/build
 /native/native_wav/native_wav.mpy
 /.cache/
+/native/py/__pycache__/*.pyc

@@ -6,12 +6,12 @@ static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
     mp_obj_t audio_out = args[0];
     mp_buffer_info_t outbufinfo;
     mp_get_buffer_raise(audio_out, &outbufinfo, MP_BUFFER_WRITE);
-    uint16_t *out_buf = (uint16_t*) outbufinfo.buf;
+    int16_t *out_buf = (int16_t*) outbufinfo.buf;
 
     mp_obj_t source_samples = args[1];
     mp_buffer_info_t sourcebufinfo;
     mp_get_buffer_raise(source_samples, &sourcebufinfo, MP_BUFFER_READ);
-    const uint16_t *source_buf = (const uint16_t*) sourcebufinfo.buf;
+    const int16_t *source_buf = (const int16_t*) sourcebufinfo.buf;
 
     mp_int_t stretch_block_input_samples = mp_obj_get_int(args[2]);
     mp_int_t stretch_block_output_samples = mp_obj_get_int(args[3]);
@@ -19,12 +19,26 @@ static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
     mp_int_t pitched_samples = mp_obj_get_int(args[5]);
     mp_float_t pitch_rate = mp_obj_get_float(args[6]);
 
+    int interpellation_window = 10;
+
     int samples_written = 0;
     for (int sample_offset = 0; sample_offset < pitched_samples; sample_offset += stretch_block_input_samples) {
         for (int i = 0; i < stretch_block_output_samples; ++i) {
-            int block_i = i % MIN(stretch_block_input_samples, pitched_samples - sample_offset);
-            int j = pitch_rate * (sample_offset + block_i);
-            out_buf[samples_written++] = source_buf[j];
+            int stretch_block_size = MIN(stretch_block_input_samples, pitched_samples - sample_offset);
+            int block_i = i % stretch_block_size;
+
+            int block_samples_left = stretch_block_output_samples - i;
+            if (block_samples_left < interpellation_window && sample_offset + stretch_block_input_samples < pitched_samples) {
+                int16_t prev_sample = out_buf[samples_written - 1];
+                int next_block_j = pitch_rate * (sample_offset + stretch_block_input_samples);
+                int16_t next_block_start_sample = source_buf[next_block_j];
+                int16_t interpellated_sample = prev_sample + (next_block_start_sample - prev_sample) / block_samples_left;
+                out_buf[samples_written++] = interpellated_sample;
+            } else {
+                int j = pitch_rate * (sample_offset + block_i);
+                out_buf[samples_written++] = source_buf[j];
+            }
+
             /* mp_printf(&mp_plat_print, "native_wav: block_i = %d, j = %d\n", block_i, j); */
             if (samples_written == target_samples) {
                 return mp_obj_new_int(2 * samples_written);
