@@ -1,6 +1,7 @@
 #+title: Notes
 
 * forsure todo
+** bring back classic joystick behaving
 ** interpellation at step boundary (need to pass in next step start sample??)
 ** use slider for step repeat length instead of knob
 ** 44.1k samples

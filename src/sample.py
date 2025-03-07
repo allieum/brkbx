@@ -37,9 +37,13 @@ CHANNELS = 1
 BYTES_PER_SAMPLE = 2
 SAMPLE_RATE = 44100
 CHUNKS = 32
+MAX_CHUNK_SIZE = 44100
 
 
 class Sample:
+    wav_samples = bytearray(MAX_CHUNK_SIZE)
+    wav_samples_mv = memoryview(wav_samples)
+
     def __init__(self, wav_filename: str):
         logger.info(wav_filename)
         self.wav_file = open(wav_filename, "rb")
@@ -60,9 +64,9 @@ class Sample:
         logger.info(f"calculated bpm is {self.bpm} for {wav_filename}")
 
         logger.info(f"{nsamples} total samples, {self.chunk_size} bytes per chunk")
+        if self.chunk_size > MAX_CHUNK_SIZE:
+            logger.error(f"chunk_size {self.chunk_size} for {self.name} is bigger than allocated array")
 
-        self.wav_samples = bytearray(self.chunk_size)
-        self.wav_samples_mv = memoryview(self.wav_samples)
 
     def get_chunk(self, i: int) -> memoryview:
         """ read the ith chunk of wav file into memory and return it """
@@ -74,5 +78,5 @@ class Sample:
 
 
 def load_samples(folder: str) -> List[Sample]:
-    files = sorted(os.listdir(folder))[:20]
+    files = sorted(os.listdir(folder))
     return [Sample(f"{folder}/{wav}") for wav in files if ".wav" in wav]

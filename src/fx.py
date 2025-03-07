@@ -105,6 +105,7 @@ class GateRepeatMode(JoystickMode):
         self.stretch = Stretch()
 
     def update(self, params: StepParams):
+        return
         x, y = joystick.position(params.step)
         if joystick.pressed():
             record_current_history(params.step)
@@ -131,7 +132,8 @@ class GateRepeatMode(JoystickMode):
 
         # self.gate.ratio = 1 if x > 0 else 1 + x
         self.gate.ratio = control.gate_fader.value()
-        self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else 8
+        # self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else 8
+        self.gate.period = control.gate_length_knob.value()
         if any(b.pressed() for b in control.buttons):
             self.gate.period = length
         # self.gate.period //= 2

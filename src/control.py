@@ -45,7 +45,7 @@ class SelectorPot():
 
 gate_fader = Pot(FADER1, 1, 0, continuous=True)
 latch_length_fader = SelectorPot(FADER2, [1, 2, 3, 4, 6, 8, 16, 32])
-
+gate_length_knob = SelectorPot(KNOB2, [1, 2, 4, 8, 16, 32])
 
 
 class Button:

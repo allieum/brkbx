@@ -165,15 +165,15 @@ def init_audio(i2s):
 
 # configure the SGTL5000 codec
 i2c = I2C(0, freq=400000)
-codec = CODEC(0x0A, i2c)
-# codec = CODEC(0x0A, i2c, sample_rate=22050, mclk_mode=3)
-codec.mute_dac(False)
-codec.dac_volume(0.9, 0.9)
-codec.headphone_select(0)
-codec.mute_headphone(False)
-codec.volume(0.9, 0.9)
-codec.adc_high_pass_filter(enable=False)
-codec.audio_processor(enable=False)
+# codec = CODEC(0x0A, i2c)
+# # codec = CODEC(0x0A, i2c, sample_rate=22050, mclk_mode=3)
+# codec.mute_dac(False)
+# codec.dac_volume(0.9, 0.9)
+# codec.headphone_select(0)
+# codec.mute_headphone(False)
+# codec.volume(0.9, 0.9)
+# codec.adc_high_pass_filter(enable=False)
+# codec.audio_processor(enable=False)
 # audio_out = I2S(
 #     I2S_ID,
 #     sck=Pin(SCK_PIN),
@@ -188,7 +188,8 @@ codec.audio_processor(enable=False)
 #     ibuf=BUFFER_LENGTH_IN_BYTES,
 # )
 
-samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")
+# samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")
+samples = load_samples("/sd/")
 # wav = open("/sd/{}".format(WAV_FILE), "rb")
 # # TODO: 44 is not safe assumption, could parse file, see https://stackoverflow.com/questions/19991405/how-can-i-detect-whether-a-wav-file-has-a-44-or-46-byte-header
 # _ = wav.seek(44)  # advance to first byte of Data section in WAV file
@@ -341,6 +342,8 @@ async def main():
     prev_step = None
     until_step = None
     control.rotary2.button.down_cb = internal_clock.toggle
+
+    internal_clock.start()
     await prepare_step(0)
     try:
         while True:
