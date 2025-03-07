@@ -17,4 +17,4 @@ deploy-micropython-firmware:
 	teensy_loader_cli --mcu=imxrt1062 -v -w TEENSY41-20241129-v1.24.1.hex
 
 setup-teensy:
-	mpr touch /flash/SKIPSD && mpr mkdir lib && mpr mkdir lib/adafruit_midi && mpr put src/lib/typing.mpy lib && mpr put native/native_wav/native_wav.mpy lib
+	mpr touch /flash/SKIPSD && mpr mkdir lib && mpr mkdir lib/adafruit_midi && mpr put src/lib/typing.mpy lib && mpr put native/native_wav/native_wav.mpy lib && mpr put src/main.py /flash/
