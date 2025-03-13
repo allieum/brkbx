@@ -16,8 +16,14 @@ JOYSTICK_X = Pin("A10")
 JOYSTICK_Y = Pin("A11")
 JOYSTICK_SEL = Pin("D30", Pin.IN, Pin.PULL_UP)
 
+JOYSTICK2_X = Pin("D40")
+JOYSTICK2_Y = Pin("D41")
+JOYSTICK2_SEL = Pin("D35", Pin.IN, Pin.PULL_UP)
+
 FADER1 = Pin("A12")
 FADER2 = Pin("A13")
+FADER3 = Pin("D38")
+FADER4 = Pin("D39")
 
 ADC_MAX = 65536
 JOYSTICK_RECORD_LEN = 32
@@ -33,7 +39,7 @@ class Pot:
         val = map_range(self.adc.read_u16(), 0, ADC_MAX, self.start_val, self.end_val)
         if not self.continuous:
             val = round(val)
-        return val
+        return round(val, 1)
 
 class SelectorPot():
     def __init__(self, pin: Pin, choices):
@@ -45,8 +51,24 @@ class SelectorPot():
 
 gate_fader = Pot(FADER1, 1, 0, continuous=True)
 latch_length_fader = SelectorPot(FADER2, [1, 2, 3, 4, 6, 8, 16, 32])
-gate_length_knob = SelectorPot(KNOB2, [1, 2, 4, 8, 16, 32])
+fader3 = Pot(FADER3, -1, 1, continuous=True)
+fader4 = Pot(FADER4, -1, 1, continuous=True)
 
+gate_length_knob = SelectorPot(KNOB1, [1, 2, 4, 8, 16, 32])
+knob2 = Pot(KNOB2, -1, 1, continuous=True)
+knob3 = Pot(KNOB3, -1, 1, continuous=True)
+knob4 = Pot(KNOB4, -1, 1, continuous=True)
+
+prev_controls = ()
+def print_controls():
+    global prev_controls
+    values = (gate_fader.value(), latch_length_fader.value(), fader3.value(), fader4.value(),
+              gate_length_knob.value(), knob2.value(), knob3.value(), knob4.value())
+    if values == prev_controls:
+        return
+    logger.info(f"faders: {values}")
+    # logger.info(f"knobs: {gate_length_knob.value(), knob2.value(), knob3.value(), knob4.value()}")
+    prev_controls = values
 
 class Button:
     id = 0
@@ -89,8 +111,8 @@ class Joystick:
         self.sel = Signal(sel, invert=True)
 
     def position(self, step = None) -> Tuple[float, float]:
-        if step and (rec := joystick_recording[step % len(joystick_recording)]) is not None:
-            return rec
+        # if step and (rec := joystick_recording[step % len(joystick_recording)]) is not None:
+        #     return rec
         x = map_range(self.x.read_u16(), 0, ADC_MAX, -1, 1)
         y = map_range(self.y.read_u16(), 0, ADC_MAX, -1, 1)
         return round(x, 1), round(y, 1)
@@ -116,7 +138,7 @@ def record_current_history(step):
 
 ROT_CLK = "D33"
 ROT_DT = "D34"
-rotary_button_1 = Button(Signal(Pin("D35", Pin.IN, Pin.PULL_UP), invert=True))
+rotary_button_1 = Button(Signal(Pin("D37", Pin.IN, Pin.PULL_UP), invert=True))
 rotary_button_2 = Button(Signal(Pin("D36", Pin.IN, Pin.PULL_UP), invert=True))
 
 buttons = [
@@ -144,5 +166,5 @@ class RotaryKnob:
     def value(self):
         return self.enc.value()
 
-rotary1 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT), rotary_button_1)
-rotary2 = RotaryKnob(RotaryIRQ("D32", "D31", pull_up=True), rotary_button_2)
+rotary1 = RotaryKnob(RotaryIRQ("D32", "D31"), rotary_button_1)
+rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True), rotary_button_2)

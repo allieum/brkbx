@@ -188,8 +188,8 @@ i2c = I2C(0, freq=400000)
 #     ibuf=BUFFER_LENGTH_IN_BYTES,
 # )
 
-# samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")
-samples = load_samples("/sd/")
+samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")
+# samples = load_samples("/sd/")
 # wav = open("/sd/{}".format(WAV_FILE), "rb")
 # # TODO: 44 is not safe assumption, could parse file, see https://stackoverflow.com/questions/19991405/how-can-i-detect-whether-a-wav-file-has-a-44-or-46-byte-header
 # _ = wav.seek(44)  # advance to first byte of Data section in WAV file
@@ -216,7 +216,8 @@ midi_clock.bpm_changed = lambda _: asyncio.create_task(prepare_step(0)) if not m
 # 1) calculate offsets into file for each beat
 # 2) trigger those on the proper midi step
 # 3) figure out time stretching or w/e
-current_sample = samples[rotary1.value() % len(samples)]
+# current_sample = samples[rotary1.value() % len(samples)]
+current_sample = samples[35 % len(samples)]
 rotary_settings = RotarySettings(rotary1)
 
 swriter = asyncio.StreamWriter(audio_out)
@@ -348,6 +349,7 @@ async def main():
     try:
         while True:
             clock = get_running_clock()
+            control.print_controls()
             if clock and not started_preparing_next_step and (until_step := ticks_diff(clock.predict_next_step_ticks(), ticks_us()) / 1000000) <= LOOKAHEAD_SEC:
                 logger.debug(f"starting to prepare step {clock.song_position + 1} {until_step}s from now")
                 started_preparing_next_step = True
