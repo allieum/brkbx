@@ -55,6 +55,7 @@ class Latch:
         if self.start_step is None:
             self.start_step = step
         self.count += 1
+        logger.info(f"self.step {self.step} step={step} start step = {self.start_step} length {length}")
         return self.step + (step - self.start_step) % length
 
     def is_active(self):
@@ -97,6 +98,7 @@ class JoystickMode:
         x, y = joystick.position(step)
         return abs(x) > 0.2 or abs(y) > 0.2
 
+button_latch = Latch()
 class GateRepeatMode(JoystickMode):
     def __init__(self):
         self.latch = Latch()
@@ -112,16 +114,20 @@ class GateRepeatMode(JoystickMode):
         # length = control.latch_length_fader.value()
         # logger.info(f"{length}")
         if x > 0.1:
-            params.step = self.latch.get(params.step, length, params.step)
-        if params.step % length != 0:
-            params.set_pitch(self.pitch.get(0))
-        elif y < -0.7:
-            params.set_pitch(self.pitch.get(-1))
-            # self.latch.reps = 4
-        # elif y < -0.2:
-        #     params.set_pitch(self.pitch.get(-1, limit=length * 4))
-        elif y > 0.7:
-            params.set_pitch(self.pitch.get(+1))
+            params.step = self.latch.get(params.step, length)
+            if params.step % length != 0:
+                params.set_pitch(self.pitch.get(0))
+            elif y < -0.7:
+                params.set_pitch(self.pitch.get(-1))
+                # self.latch.reps = 4
+            # elif y < -0.2
+            #     params.set_pitch(self.pitch.get(-1, limit=length * 4))
+            elif y > 0.7:
+                params.set_pitch(self.pitch.get(+1))
+
+        button_length = length if x > 0.1 else control.latch_length_fader.value()
+        if button_latch.is_active():
+            params.step = button_latch.get(params.step, button_length)
         # elif y > 0.2:
         #     params.set_pitch(self.pitch.get(+1, limit=length * 4))
             # self.latch.reps = 2

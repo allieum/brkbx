@@ -32,6 +32,12 @@ logger = utility.get_logger(__name__)
 sd = SDCard(1)  # Teensy 4.1: sck=45, mosi=43, miso=42, cs=44
 os.mount(sd, "/sd")
 
+# ===== mysteriously, keypad module only works when these are defined here =========
+Pin("D1", Pin.IN, Pin.PULL_DOWN)
+Pin("D2", Pin.IN, Pin.PULL_DOWN)
+Pin("D3", Pin.IN, Pin.PULL_DOWN)
+Pin("D4", Pin.IN, Pin.PULL_DOWN)
+
 # ======= I2S CONFIGURATION =======
 SCK_PIN = 'D21'
 WS_PIN = 'D20'
@@ -254,8 +260,6 @@ async def prepare_step(step) -> None:
     pitch_rate = 1
     # pitch_rate = clock.bpm / current_sample.bpm
     params = StepParams(step, pitch_rate, stretch_rate)
-    if button_latch.is_active():
-        params.step = button_latch.get(params.step, control.latch_length_fader.value())
     fx.joystick_mode.update(params)
     log_joystick()
     if params.step is None:
@@ -317,22 +321,20 @@ def create_button_down(i):
         if not clock_running():
             ephemeral_start = True
             internal_clock.start()
-        button_latch.activate(i * 8, quantize=not ephemeral_start)
+        fx.button_latch.activate(i * 2, quantize=not ephemeral_start)
     return f
 
 def button_up():
     global ephemeral_start
-    if any(button.pressed() for button in control.buttons):
+    if control.keypad.any_pressed(range(16)):
         return
     if internal_clock.play_mode and ephemeral_start:
         internal_clock.stop()
         ephemeral_start = False
-    button_latch.cancel()
+    fx.button_latch.cancel()
 
-button_latch = fx.Latch()
-for i, button in enumerate(control.buttons):
-    button.down_cb = create_button_down(i)
-    button.up_cb = button_up
+for key in range(16):
+    control.keypad.on(key, create_button_down(key), button_up)
 
 async def main():
     global current_sample, started_preparing_next_step, bytes_written
@@ -350,6 +352,8 @@ async def main():
         while True:
             clock = get_running_clock()
             control.print_controls()
+            control.keypad.read_keypad()
+            # print(f"{control.joystick2.position(), control.joystick2.pressed()}")
             if clock and not started_preparing_next_step and (until_step := ticks_diff(clock.predict_next_step_ticks(), ticks_us()) / 1000000) <= LOOKAHEAD_SEC:
                 logger.debug(f"starting to prepare step {clock.song_position + 1} {until_step}s from now")
                 started_preparing_next_step = True

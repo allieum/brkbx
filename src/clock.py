@@ -5,6 +5,8 @@ from time import ticks_add, ticks_us, ticks_diff
 logger = utility.get_logger(__name__, "DEBUG")
 
 class InternalClock:
+    RESET_START_INTERVAL = 1024
+
     def __init__(self):
         self.song_position = 0
         self.play_mode = False
@@ -50,6 +52,9 @@ class InternalClock:
         """
         if ticks < self.predict_next_step_ticks() or not self.play_mode:
             return None
+        if self.step_count >= self.RESET_START_INTERVAL:
+            self.step_count = 0
+            self.start_ticks = ticks
         self.song_position += 1
         self.step_count += 1
         return self.song_position

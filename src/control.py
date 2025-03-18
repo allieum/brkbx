@@ -1,5 +1,6 @@
 from typing import Tuple
 from adafruit_simplemath import map_range
+from keypad import Keypad
 from machine import Pin, ADC, Signal
 from rotary_irq_rp2 import RotaryIRQ
 from collections import deque
@@ -8,9 +9,9 @@ import utility
 logger = utility.get_logger(__name__)
 
 KNOB1 = Pin("A0")
-KNOB2 = Pin("A2")
-KNOB3 = Pin("A3")
-KNOB4 = Pin("A1")
+KNOB2 = Pin("A1")
+KNOB3 = Pin("A2")
+KNOB4 = Pin("A3")
 
 JOYSTICK_X = Pin("A10")
 JOYSTICK_Y = Pin("A11")
@@ -27,6 +28,12 @@ FADER4 = Pin("D39")
 
 ADC_MAX = 65536
 JOYSTICK_RECORD_LEN = 32
+
+KEY_ROWS = [Pin("D1", Pin.IN, Pin.PULL_DOWN), Pin("D2", Pin.IN, Pin.PULL_DOWN), Pin("D3", Pin.IN, Pin.PULL_DOWN), Pin("D4", Pin.IN, Pin.PULL_DOWN)]
+KEY_COLS = [Pin("D9"), Pin("D10"), Pin("D11"), Pin("D12"), Pin("D0")]
+
+
+keypad = Keypad(KEY_ROWS, KEY_COLS)
 
 class Pot:
     def __init__(self, pin: Pin, start_val, end_val, continuous: bool):
@@ -49,7 +56,7 @@ class SelectorPot():
     def value(self):
         return self.choices[self.knob.value()]
 
-gate_fader = Pot(FADER1, 1, 0, continuous=True)
+gate_fader = Pot(FADER1, 0, 1, continuous=True)
 latch_length_fader = SelectorPot(FADER2, [1, 2, 3, 4, 6, 8, 16, 32])
 fader3 = Pot(FADER3, -1, 1, continuous=True)
 fader4 = Pot(FADER4, -1, 1, continuous=True)
@@ -59,16 +66,6 @@ knob2 = Pot(KNOB2, -1, 1, continuous=True)
 knob3 = Pot(KNOB3, -1, 1, continuous=True)
 knob4 = Pot(KNOB4, -1, 1, continuous=True)
 
-prev_controls = ()
-def print_controls():
-    global prev_controls
-    values = (gate_fader.value(), latch_length_fader.value(), fader3.value(), fader4.value(),
-              gate_length_knob.value(), knob2.value(), knob3.value(), knob4.value())
-    if values == prev_controls:
-        return
-    logger.info(f"faders: {values}")
-    # logger.info(f"knobs: {gate_length_knob.value(), knob2.value(), knob3.value(), knob4.value()}")
-    prev_controls = values
 
 class Button:
     id = 0
@@ -122,6 +119,7 @@ class Joystick:
 
 
 joystick = Joystick(JOYSTICK_X, JOYSTICK_Y, JOYSTICK_SEL)
+joystick2 = Joystick(JOYSTICK2_X, JOYSTICK2_Y, JOYSTICK2_SEL)
 joystick_history = deque([], 8)
 joystick_recording = [None] * JOYSTICK_RECORD_LEN
 
@@ -142,10 +140,10 @@ rotary_button_1 = Button(Signal(Pin("D37", Pin.IN, Pin.PULL_UP), invert=True))
 rotary_button_2 = Button(Signal(Pin("D36", Pin.IN, Pin.PULL_UP), invert=True))
 
 buttons = [
-    Button(Signal(Pin("D1", Pin.IN, Pin.PULL_UP), invert=True)),
-    Button(Signal(Pin("D2", Pin.IN, Pin.PULL_UP), invert=True)),
-    Button(Signal(Pin("D3", Pin.IN, Pin.PULL_UP), invert=True)),
-    Button(Signal(Pin("D4", Pin.IN, Pin.PULL_UP), invert=True)),
+    # Button(Signal(Pin("D1", Pin.IN, Pin.PULL_UP), invert=True)),
+    # Button(Signal(Pin("D2", Pin.IN, Pin.PULL_UP), invert=True)),
+    # Button(Signal(Pin("D3", Pin.IN, Pin.PULL_UP), invert=True)),
+    # Button(Signal(Pin("D4", Pin.IN, Pin.PULL_UP), invert=True)),
 ]
 
 class RotaryKnob:
@@ -168,3 +166,13 @@ class RotaryKnob:
 
 rotary1 = RotaryKnob(RotaryIRQ("D32", "D31"), rotary_button_1)
 rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True), rotary_button_2)
+
+prev_controls = ()
+def print_controls():
+    global prev_controls
+    values = (gate_fader.value(), latch_length_fader.value(), fader3.value(), fader4.value(),
+              gate_length_knob.value(), knob2.value(), knob3.value(), knob4.value())
+    if values == prev_controls:
+        return
+    logger.info(f"faders: {values}")
+    prev_controls = values
