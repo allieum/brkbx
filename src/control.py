@@ -33,6 +33,8 @@ KEY_ROWS = [Pin("D1", Pin.IN, Pin.PULL_DOWN), Pin("D2", Pin.IN, Pin.PULL_DOWN), 
 KEY_COLS = [Pin("D9"), Pin("D10"), Pin("D11"), Pin("D12"), Pin("D0")]
 
 
+SAMPLE_KEYS = [0, 1, 2, 3]
+PLAY_KEY = 19
 keypad = Keypad(KEY_ROWS, KEY_COLS)
 
 class Pot:

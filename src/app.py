@@ -262,8 +262,9 @@ async def prepare_step(step) -> None:
     params = StepParams(step, pitch_rate, stretch_rate)
     fx.joystick_mode.update(params)
     log_joystick()
-    if params.step is None:
-        logger.info(f"step {step} params.step is None")
+    play_step = sample_voice_on or fx.joystick_mode.has_input()
+    if params.step is None or not play_step:
+        # logger.info(f"step {step} params.step is None")
         return
     chunk_samples = current_sample.get_chunk(params.step)
     stretch_block_length = 0.015 # in seconds
@@ -315,26 +316,32 @@ def clock_running():
     return get_running_clock() is not None
 
 ephemeral_start = False
+sample_voice_on = False
 def create_button_down(i):
     def f():
-        global ephemeral_start
+        global ephemeral_start, sample_voice_on, current_sample
         if not clock_running():
             ephemeral_start = True
             internal_clock.start()
-        fx.button_latch.activate(i * 2, quantize=not ephemeral_start)
+        # fx.button_latch.activate(i * 2, quantize=not ephemeral_start)
+        current_sample = samples[(rotary1.value() + i) % len(samples)]
+        sample_voice_on = True
     return f
 
 def button_up():
-    global ephemeral_start
-    if control.keypad.any_pressed(range(16)):
+    global ephemeral_start, sample_voice_on
+    if control.keypad.any_pressed(control.SAMPLE_KEYS):
         return
     if internal_clock.play_mode and ephemeral_start:
         internal_clock.stop()
         ephemeral_start = False
-    fx.button_latch.cancel()
+    # fx.button_latch.cancel()
+    sample_voice_on = False
 
-for key in range(16):
+for key in control.SAMPLE_KEYS:
     control.keypad.on(key, create_button_down(key), button_up)
+
+control.keypad.on(control.PLAY_KEY, internal_clock.toggle)
 
 async def main():
     global current_sample, started_preparing_next_step, bytes_written
