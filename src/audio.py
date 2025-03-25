@@ -59,6 +59,7 @@ target_samples = 0
 
 stretch_write = 0
 last_input_step = 0
+started_preparing_next_step = False
 PLAY_WINDOW = 2
 async def play_step(step, bpm):
     global started_preparing_next_step, last_input_step, stretch_write

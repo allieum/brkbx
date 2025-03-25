@@ -15,6 +15,7 @@ from machine import UART
 from sgtl5000 import CODEC
 from time import ticks_us, ticks_diff
 
+import audio
 from audio import play_step, prepare_step, audio_out
 from clock import internal_clock, midi_clock, get_running_clock
 from control import joystick, rotary1, log_joystick
@@ -155,8 +156,8 @@ rotary_settings = RotarySettings(rotary1)
 
 
 async def main():
-    global current_sample, started_preparing_next_step, bytes_written
-    started_preparing_next_step = False
+    global current_sample, bytes_written
+    audio.started_preparing_next_step = False
     asyncio.create_task(midi_receive())
     asyncio.create_task(run_internal_clock())
     current_sample = samples[rotary1.value() % len(samples)]
@@ -171,9 +172,9 @@ async def main():
             control.print_controls()
             control.keypad.read_keypad()
             # print(f"{control.joystick2.position(), control.joystick2.pressed()}")
-            if clock and not started_preparing_next_step and (until_step := ticks_diff(clock.predict_next_step_ticks(), ticks_us()) / 1000000) <= LOOKAHEAD_SEC:
+            if clock and not audio.started_preparing_next_step and (until_step := ticks_diff(clock.predict_next_step_ticks(), ticks_us()) / 1000000) <= LOOKAHEAD_SEC:
                 logger.debug(f"starting to prepare step {clock.song_position + 1} {until_step}s from now")
-                started_preparing_next_step = True
+                audio.started_preparing_next_step = True
                 await prepare_step(clock.song_position + 1)
 
             await asyncio.sleep(0.005)
