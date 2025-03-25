@@ -18,6 +18,8 @@ static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
     mp_int_t target_samples = mp_obj_get_int(args[4]);
     mp_int_t pitched_samples = mp_obj_get_int(args[5]);
     mp_float_t pitch_rate = mp_obj_get_float(args[6]);
+    mp_float_t volume = mp_obj_get_float(args[7]);
+
 
     int interpellation_window = 10;
 
@@ -33,10 +35,10 @@ static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
                 int next_block_j = pitch_rate * (sample_offset + stretch_block_input_samples);
                 int16_t next_block_start_sample = source_buf[next_block_j];
                 int16_t interpellated_sample = prev_sample + (next_block_start_sample - prev_sample) / block_samples_left;
-                out_buf[samples_written++] = interpellated_sample;
+                out_buf[samples_written++] = interpellated_sample * volume;
             } else {
                 int j = pitch_rate * (sample_offset + block_i);
-                out_buf[samples_written++] = source_buf[j];
+                out_buf[samples_written++] = source_buf[j] * volume;
             }
 
             /* mp_printf(&mp_plat_print, "native_wav: block_i = %d, j = %d\n", block_i, j); */

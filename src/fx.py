@@ -38,7 +38,7 @@ class Latch:
 
     def activate(self, step: int, quantize=True):
         # self.length = length
-        delta = step % 2 if quantize else 0
+        delta = step % 4 if quantize else 0
         self.step = step - delta
         logger.info(f"latching on step {step} -> quantized to {self.step}")
         # self.step = step - step % length
@@ -110,20 +110,22 @@ class GateRepeatMode(JoystickMode):
         x, y = joystick.position(params.step)
         if joystick.pressed():
             record_current_history(params.step)
-        length = 4 if x > 0.9 else 2 if x > 0.5 else 1
+        base_length = control.latch_length_fader.value()
+        length = 3 if x > 0.9 else 2 if x > 0.5 else 1
+        length *= base_length
         # length = control.latch_length_fader.value()
         # logger.info(f"{length}")
         if x > 0.1:
             params.step = self.latch.get(params.step, length)
-            if params.step % length != 0:
-                params.set_pitch(self.pitch.get(0))
-            elif y < -0.7:
-                params.set_pitch(self.pitch.get(-1))
-                # self.latch.reps = 4
-            # elif y < -0.2
-            #     params.set_pitch(self.pitch.get(-1, limit=length * 4))
-            elif y > 0.7:
-                params.set_pitch(self.pitch.get(+1))
+        if params.step % length != 0:
+            params.set_pitch(self.pitch.get(0))
+        elif y < -0.7:
+            params.set_pitch(self.pitch.get(-1))
+            # self.latch.reps = 4
+        # elif y < -0.2
+        #     params.set_pitch(self.pitch.get(-1, limit=length * 4))
+        elif y > 0.7:
+            params.set_pitch(self.pitch.get(+1))
 
         button_length = length if x > 0.1 else control.latch_length_fader.value()
         if button_latch.is_active():
@@ -135,11 +137,12 @@ class GateRepeatMode(JoystickMode):
             # self.latch.reps = None
         if abs(x) <= 0.1:
             self.latch.cancel()
+        if abs(y) <= 0.1:
             self.pitch.cancel()
 
         gate_knob = control.gate_fader.value()
-        self.gate.ratio = 1 if x > 0.3 else 1 + x if x < -0.3 else gate_knob
-        self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else control.gate_length_knob.value()
+        self.gate.ratio = 1 if x > 0.3 else 1.2 + x if x < -0.3 else gate_knob
+        self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else control.gate_length_fader.value()
         if any(b.pressed() for b in control.buttons):
             self.gate.period = length
         # self.gate.period //= 2

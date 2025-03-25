@@ -80,3 +80,7 @@ class Sample:
 def load_samples(folder: str) -> List[Sample]:
     files = sorted(os.listdir(folder))
     return [Sample(f"{folder}/{wav}") for wav in files if ".wav" in wav]
+
+samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")
+voice_on = False
+current_sample = samples[0]

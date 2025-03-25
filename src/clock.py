@@ -10,7 +10,7 @@ class InternalClock:
     def __init__(self):
         self.song_position = 0
         self.play_mode = False
-        self.bpm = 143
+        self.bpm = 136
         self.start_ticks = None
         self.step_count = 0
         self.bpm_changed = lambda _: ()
@@ -58,6 +58,7 @@ class InternalClock:
         self.song_position += 1
         self.step_count += 1
         return self.song_position
+
 
     # todo update_bpm method which resets start_ticks and step_count, on next step (?)
     # def update_bpm(self, bpm):
@@ -184,3 +185,13 @@ class MidiClock:
                 self.bpm_changed(bpm)
             self.prev_bpm = bpm
         return new_position
+
+internal_clock = InternalClock()
+midi_clock = MidiClock()
+
+def get_running_clock():
+    clock = midi_clock if midi_clock.play_mode else internal_clock if internal_clock.play_mode else None
+    return clock
+
+def clock_running():
+    return get_running_clock() is not None

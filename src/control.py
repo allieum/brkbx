@@ -33,22 +33,30 @@ KEY_ROWS = [Pin("D1", Pin.IN, Pin.PULL_DOWN), Pin("D2", Pin.IN, Pin.PULL_DOWN), 
 KEY_COLS = [Pin("D9"), Pin("D10"), Pin("D11"), Pin("D12"), Pin("D0")]
 
 
-SAMPLE_KEYS = [0, 1, 2, 3]
+SOUND_KEYS = range(16)
+SAMPLE_KEYS = [0, 1, 2, 3,
+               8, 9, 10, 11]
+SNARE_KEYS = [4, 5, 6, 7,
+              12, 13, 14, 15]
+SLOW_KEY = 16
+RAND_KEY = 17
+HOLD_KEY = 18
 PLAY_KEY = 19
 keypad = Keypad(KEY_ROWS, KEY_COLS)
 
 class Pot:
-    def __init__(self, pin: Pin, start_val, end_val, continuous: bool):
+    def __init__(self, pin: Pin, start_val, end_val, continuous: bool, digits = 1):
         self.adc = ADC(pin)
         self.start_val = start_val
         self.end_val = end_val
         self.continuous = continuous
+        self.digits = digits
 
     def value(self):
         val = map_range(self.adc.read_u16(), 0, ADC_MAX, self.start_val, self.end_val)
         if not self.continuous:
             val = round(val)
-        return round(val, 1)
+        return round(val, self.digits)
 
 class SelectorPot():
     def __init__(self, pin: Pin, choices):
@@ -59,14 +67,14 @@ class SelectorPot():
         return self.choices[self.knob.value()]
 
 gate_fader = Pot(FADER1, 0, 1, continuous=True)
-latch_length_fader = SelectorPot(FADER2, [1, 2, 3, 4, 6, 8, 16, 32])
-fader3 = Pot(FADER3, -1, 1, continuous=True)
+gate_length_fader = SelectorPot(FADER2, [1, 2, 4, 8, 16, 32])
+latch_length_fader = SelectorPot(FADER3, [1, 2, 3, 4, 6, 8, 16, 32])
 fader4 = Pot(FADER4, -1, 1, continuous=True)
 
-gate_length_knob = SelectorPot(KNOB1, [1, 2, 4, 8, 16, 32])
+timestretch_grain_knob = Pot(KNOB1, 0.001, 0.150, continuous=True, digits=3)
 knob2 = Pot(KNOB2, -1, 1, continuous=True)
 knob3 = Pot(KNOB3, -1, 1, continuous=True)
-knob4 = Pot(KNOB4, -1, 1, continuous=True)
+volume_knob = Pot(KNOB4, 0, 1, continuous=True, digits=2)
 
 
 class Button:
@@ -172,8 +180,10 @@ rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True), rotary_button_2)
 prev_controls = ()
 def print_controls():
     global prev_controls
-    values = (gate_fader.value(), latch_length_fader.value(), fader3.value(), fader4.value(),
-              gate_length_knob.value(), knob2.value(), knob3.value(), knob4.value())
+    pass
+    values = 1
+    # values = (gate_fader.value(), latch_length_fader.value(), fader3.value(), fader4.value(),
+    #           gate_length_fader.value(), knob2.value(), knob3.value(), knob4.value())
     if values == prev_controls:
         return
     logger.info(f"faders: {values}")
