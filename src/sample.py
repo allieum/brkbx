@@ -81,6 +81,16 @@ def load_samples(folder: str) -> List[Sample]:
     files = sorted(os.listdir(folder))
     return [Sample(f"{folder}/{wav}") for wav in files if ".wav" in wav]
 
-samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")
+samples = []
 voice_on = False
-current_sample = samples[0]
+current_sample = 0
+def init():
+    global samples
+    samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")
+    logger.info(f"loaded {len(samples)} samples")
+
+def get_samples():
+    return samples
+
+def get_current_sample():
+    return samples[current_sample % len(samples)]

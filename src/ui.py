@@ -5,6 +5,17 @@ import fx
 
 ephemeral_start = False
 sample.voice_on = True
+
+class ButtonDown:
+    ephemeral_start = False
+
+    def __init__(self, cb = None):
+        self.cb = cb
+
+    def __call__(self):
+        if self.cb:
+            self.cb()
+
 def create_button_down(i):
     def f():
         global ephemeral_start, current_sample

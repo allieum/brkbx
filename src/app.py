@@ -11,7 +11,8 @@ from control import rotary1
 import control
 import ui
 from midi import midi_receive, LOOKAHEAD_SEC
-from sample import samples
+import sample
+from sample import get_samples
 from settings import RotarySetting, RotarySettings
 import utility
 
@@ -21,11 +22,12 @@ Pin("D2", Pin.IN, Pin.PULL_DOWN)
 Pin("D3", Pin.IN, Pin.PULL_DOWN)
 Pin("D4", Pin.IN, Pin.PULL_DOWN)
 
-logger = utility.get_logger(__name__)
+logger = utility.get_logger(__name__, "DEBUG")
 
 sd = SDCard(1)  # Teensy 4.1: sck=45, mosi=43, miso=42, cs=44
 os.mount(sd, "/sd")
 
+sample.init()
 ui.init()
 
 async def run_internal_clock():
@@ -39,20 +41,21 @@ async def run_internal_clock():
 
 started = False
 midi_clock.bpm_changed = lambda _: asyncio.create_task(prepare_step(0)) if not midi_clock.play_mode else ()
-current_sample = samples[35 % len(samples)]
 rotary_settings = RotarySettings(rotary1)
 
 
 async def main():
-    global current_sample, bytes_written
+    logger.info(f"entered main() len samples {len(get_samples())}")
     audio.started_preparing_next_step = False
     asyncio.create_task(midi_receive())
     asyncio.create_task(run_internal_clock())
-    current_sample = samples[rotary1.value() % len(samples)]
+    sample.current_sample = rotary1.value() % len(get_samples())
     until_step = None
     control.rotary2.button.down_cb = internal_clock.toggle
 
+    logger.info(f"preparing first step")
     await prepare_step(0)
+    logger.info(f"prepared first step")
     try:
         while True:
             clock = get_running_clock()
@@ -70,8 +73,8 @@ async def main():
                     internal_clock.bpm = new_val
                     logger.info(f"internal bpm set to {new_val}")
                 elif rotary_settings.setting == RotarySetting.SAMPLE:
-                    current_sample = samples[new_val % len(samples)]
-                    logger.info(f"switched to sample {current_sample.name}")
+                    sample.current_sample = new_val % len(samples)
+                    logger.info(f"switched to sample {sample.get_current_sample().name}")
             if (delta := control.rotary2.poll()) != 0:
                 new_bpm = internal_clock.bpm + delta
                 logger.info(f"internal bpm set to {new_bpm}")
