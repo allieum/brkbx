@@ -103,7 +103,7 @@ class MidiClock:
         logger.info("received midi stop")
         self.play_mode = False
 
-    def update_bpm(self, step, ticks) -> int:
+    def update_bpm(self, ticks) -> int:
         # interval_steps = step % self.BPM_INTERVAL
         bpm = self.bpm
         if self.prev_ticks:
@@ -171,7 +171,7 @@ class MidiClock:
                 pass
                 # logger.info(f"lag is {ticks_diff(predicted_ticks, actual_ticks) / 1000000}")
         if self.clock_count % self.BPM_INTERVAL == 0:
-            bpm = self.update_bpm(self.song_position, ticks)
+            bpm = self.update_bpm(ticks)
             if bpm != self.bpm and bpm == self.prev_bpm and bpm >= 40 and bpm < 300:
                 self.bpm = bpm
                 logger.debug(f"bpm changed to {bpm}")
