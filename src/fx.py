@@ -99,6 +99,7 @@ class JoystickMode:
         return abs(x) > 0.2 or abs(y) > 0.2
 
 button_latch = Latch()
+button_stretch = Stretch()
 class GateRepeatMode(JoystickMode):
     def __init__(self):
         self.latch = Latch()
@@ -155,6 +156,8 @@ class GateRepeatMode(JoystickMode):
             params.step = self.stretch.get_slice(params.step, rate)
         else:
             self.stretch.cancel()
+        if button_stretch.is_active():
+            button_stretch.get_slice(params.step or 0, 0.5)
 
 
 class PitchStretchMode(JoystickMode):

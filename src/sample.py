@@ -94,3 +94,7 @@ def get_samples():
 
 def get_current_sample():
     return samples[current_sample % len(samples)]
+
+def set_current_sample(i):
+    global current_sample
+    current_sample = i % len(samples)

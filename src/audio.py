@@ -10,7 +10,7 @@ import native_wav
 import fx
 import sample
 from clock import get_running_clock
-from sample import current_sample
+from sample import get_current_sample
 
 logger = utility.get_logger(__name__)
 
@@ -84,11 +84,12 @@ async def prepare_step(step) -> None:
         return
     else:
         bpm = clock.bpm
+    current_sample = get_current_sample()
     stretch_rate = bpm / current_sample.bpm
     pitch_rate = 1
     params = StepParams(step, pitch_rate, stretch_rate)
     fx.joystick_mode.update(params)
-    logger.info(f"prepare step {params.step}")
+    # logger.info(f"prepare step {params.step}")
     log_joystick()
     if params.step is None:
         logger.info(f"skipping step {step} ({params.step})")
@@ -118,7 +119,7 @@ async def prepare_step(step) -> None:
                                          pitched_samples,
                                          params.pitch_rate,
                                          volume)
-        logger.info(f"volume : {volume}")
+        # logger.info(f"volume : {volume}")
         logger.debug(f"finished writing {step} res={bytes_written}, took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
 
 async def write_audio(step, start, end):

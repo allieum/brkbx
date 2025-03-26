@@ -12,7 +12,7 @@ import control
 import ui
 from midi import midi_receive, LOOKAHEAD_SEC
 import sample
-from sample import get_samples
+from sample import get_samples, set_current_sample
 from settings import RotarySetting, RotarySettings
 import utility
 
@@ -22,7 +22,7 @@ Pin("D2", Pin.IN, Pin.PULL_DOWN)
 Pin("D3", Pin.IN, Pin.PULL_DOWN)
 Pin("D4", Pin.IN, Pin.PULL_DOWN)
 
-logger = utility.get_logger(__name__, "DEBUG")
+logger = utility.get_logger(__name__)
 
 sd = SDCard(1)  # Teensy 4.1: sck=45, mosi=43, miso=42, cs=44
 os.mount(sd, "/sd")
@@ -73,7 +73,7 @@ async def main():
                     internal_clock.bpm = new_val
                     logger.info(f"internal bpm set to {new_val}")
                 elif rotary_settings.setting == RotarySetting.SAMPLE:
-                    sample.current_sample = new_val % len(samples)
+                    set_current_sample(new_val % len(get_samples()))
                     logger.info(f"switched to sample {sample.get_current_sample().name}")
             if (delta := control.rotary2.poll()) != 0:
                 new_bpm = internal_clock.bpm + delta

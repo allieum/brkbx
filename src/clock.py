@@ -195,3 +195,6 @@ def get_running_clock():
 
 def clock_running():
     return get_running_clock() is not None
+
+def get_current_step():
+    return 0 if (clock := get_running_clock()) is None else clock.song_position
