@@ -1,10 +1,11 @@
 
 class StepParams:
-    def __init__(self, step, pitch_rate, stretch_rate):
+    def __init__(self, step, pitch_rate, stretch_rate, sample):
         self.step = step
         self.pitch_rate = pitch_rate
         self.stretch_rate = stretch_rate
         self.play_step = True
+        self.sample: int = sample
 
     def modulate(self, joystick_mode):
         """

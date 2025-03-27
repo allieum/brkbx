@@ -1,8 +1,10 @@
 import control
 from control import joystick, joystick_recording, record_current_history
 from sequence import StepParams
-from sample import CHUNKS
+from sample import CHUNKS, get_samples, set_current_sample, get_current_sample
 from utility import get_logger
+
+import random
 
 logger = get_logger(__name__)
 
@@ -44,6 +46,7 @@ class Latch:
         # self.step = step - step % length
         self.count = 0
         self.start_step = None
+
 
     def get(self, step: int | None, length: int, start_step = None, quantize=True) -> int:
         if step is None:
@@ -89,6 +92,30 @@ class Stretch:
 
     def cancel(self):
         self.stretch_start = None
+
+class SampleFlip:
+    def __init__(self):
+        self.flipping = False
+        self.last_flip = None
+        self.original_sample = get_current_sample().i
+
+    def flip_sample(self, step):
+        first_time = self.last_flip is None
+        if self.flipping and (first_time or step - self.last_flip >= control.flip_speed_fader.value()):
+            # get a random one
+            self.last_flip = step
+            set_current_sample(random.randint(0, len(get_samples()) - 1))
+
+    def cancel(self):
+        self.flipping = False
+        self.last_flip = 0
+        set_current_sample(self.original_sample)
+
+    def activate(self):
+        self.flipping = True
+        self.original_sample = get_current_sample().i
+flip = SampleFlip()
+
 
 class JoystickMode:
     def update(self, params: StepParams):
@@ -157,7 +184,7 @@ class GateRepeatMode(JoystickMode):
         else:
             self.stretch.cancel()
         if button_stretch.is_active():
-            button_stretch.get_slice(params.step or 0, 0.5)
+            params.step = button_stretch.get_slice(params.step or 0, 0.5)
 
 
 class PitchStretchMode(JoystickMode):
@@ -187,3 +214,6 @@ class PitchStretchMode(JoystickMode):
 
 # joystick_mode = PitchStretchMode()
 joystick_mode = GateRepeatMode()
+
+def stretch_active():
+    return joystick_mode.stretch.is_active() or button_stretch.is_active()

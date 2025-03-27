@@ -44,11 +44,12 @@ class Sample:
     wav_samples = bytearray(MAX_CHUNK_SIZE)
     wav_samples_mv = memoryview(wav_samples)
 
-    def __init__(self, wav_filename: str):
+    def __init__(self, wav_filename: str, i):
         logger.info(wav_filename)
         self.wav_file = open(wav_filename, "rb")
         self.wav_offset, self.wav_size = find_wav_data(self.wav_file)
         self.name = wav_filename
+        self.i = i
 
         nsamples = self.wav_size / CHANNELS / BYTES_PER_SAMPLE
         length = nsamples / SAMPLE_RATE
@@ -79,7 +80,7 @@ class Sample:
 
 def load_samples(folder: str) -> List[Sample]:
     files = sorted(os.listdir(folder))
-    return [Sample(f"{folder}/{wav}") for wav in files if ".wav" in wav]
+    return [Sample(f"{folder}/{wav}", i) for i, wav in enumerate(files) if ".wav" in wav]
 
 samples = []
 voice_on = False

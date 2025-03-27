@@ -60,7 +60,7 @@ async def play_step(step, bpm):
         return
 
     step_bytes = round(60 / bpm / 8 * SAMPLE_RATE_IN_HZ) * 2
-    if fx.joystick_mode.stretch.is_active():
+    if fx.stretch_active():
         # logger.info(f"stretch writing {stretch_write}:{stretch_write+step_bytes}, bytes_written={bytes_written}")
         await write_audio(step, stretch_write, stretch_write + step_bytes)
         stretch_write += step_bytes
@@ -87,8 +87,9 @@ async def prepare_step(step) -> None:
     current_sample = get_current_sample()
     stretch_rate = bpm / current_sample.bpm
     pitch_rate = 1
-    params = StepParams(step, pitch_rate, stretch_rate)
+    params = StepParams(step, pitch_rate, stretch_rate, current_sample.i)
     fx.joystick_mode.update(params)
+    current_sample = get_current_sample()
     # logger.info(f"prepare step {params.step}")
     log_joystick()
     if params.step is None:

@@ -3,19 +3,23 @@ import sample
 from sample import set_current_sample
 from clock import internal_clock, clock_running, get_current_step
 import fx
+import utility
+
+logger = utility.get_logger(__name__)
 
 ephemeral_start = False
 sample.voice_on = True
 
 class ButtonDown:
-    def __init__(self, i = None, cb = None):
-        self.cb = cb
+    def __init__(self, i = None):
         self.i = i
 
     def __call__(self):
         self.down()
-        if self.cb:
-            self.cb()
+        self.action()
+
+    def action(self):
+        pass
 
     def down(self):
         global ephemeral_start
@@ -28,13 +32,12 @@ class ButtonDown:
         sample.voice_on = True
 
 class ButtonUp:
-    def __init__(self, cb = None):
-        self.cb = cb
-
     def __call__(self):
         self.up()
-        if self.cb:
-            self.cb()
+        self.action()
+
+    def action(self):
+        pass
 
     def up(self):
         global ephemeral_start
@@ -43,24 +46,32 @@ class ButtonUp:
         if internal_clock.play_mode and ephemeral_start:
             internal_clock.stop()
             ephemeral_start = False
-        # fx.button_latch.cancel()
+        sample.voice_on = False
 
 class SnareDown(ButtonDown):
-    def cb(self):
+    def action(self):
+        logger.info(f"snare callback")
         fx.button_latch.activate(8, quantize=not ephemeral_start)
 
 class SnareUp(ButtonUp):
-    def cb(self):
+    def action(self):
         fx.button_latch.cancel()
 
 class SlowDown(ButtonDown):
-    def cb(self):
+    def action(self):
         fx.button_stretch.get_slice(get_current_step(), 0.5)
 
 class SlowUp(ButtonUp):
-    def cb(self):
+    def action(self):
         fx.button_stretch.cancel()
 
+class FlipDown(ButtonDown):
+    def action(self):
+        fx.flip.activate()
+
+class FlipUp(ButtonUp):
+    def action(self):
+        fx.flip.cancel()
 
 hold = False
 def toggle_hold():

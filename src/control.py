@@ -69,7 +69,7 @@ class SelectorPot():
 gate_fader = Pot(FADER1, 0, 1, continuous=True)
 gate_length_fader = SelectorPot(FADER2, [1, 2, 4, 8, 16, 32])
 latch_length_fader = SelectorPot(FADER3, [1, 2, 3, 4, 6, 8, 16, 32])
-fader4 = Pot(FADER4, -1, 1, continuous=True)
+flip_speed_fader = SelectorPot(FADER4, [1, 2, 4, 8, 16, 32])
 
 timestretch_grain_knob = Pot(KNOB1, 0.001, 0.150, continuous=True, digits=3)
 knob2 = Pot(KNOB2, -1, 1, continuous=True)
