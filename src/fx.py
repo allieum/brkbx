@@ -97,7 +97,7 @@ class SampleFlip:
     def __init__(self):
         self.flipping = False
         self.last_flip = None
-        self.original_sample = get_current_sample().i
+        self.original_sample = None
 
     def flip_sample(self, step):
         first_time = self.last_flip is None
@@ -109,7 +109,8 @@ class SampleFlip:
     def cancel(self):
         self.flipping = False
         self.last_flip = 0
-        set_current_sample(self.original_sample)
+        if self.original_sample:
+            set_current_sample(self.original_sample)
 
     def activate(self):
         self.flipping = True

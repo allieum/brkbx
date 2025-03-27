@@ -39,7 +39,7 @@ SAMPLE_KEYS = [0, 1, 2, 3,
 SNARE_KEYS = [4, 5, 6, 7,
               12, 13, 14, 15]
 SLOW_KEY = 16
-RAND_KEY = 17
+FLIP_KEY = 17
 HOLD_KEY = 18
 PLAY_KEY = 19
 keypad = Keypad(KEY_ROWS, KEY_COLS)

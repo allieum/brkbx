@@ -67,10 +67,12 @@ class SlowUp(ButtonUp):
 
 class FlipDown(ButtonDown):
     def action(self):
+        logger.info(f"activated sample flip")
         fx.flip.activate()
 
 class FlipUp(ButtonUp):
     def action(self):
+        logger.info(f"cancelled sample flip")
         fx.flip.cancel()
 
 hold = False
@@ -87,3 +89,4 @@ def init():
     control.keypad.on(control.PLAY_KEY, internal_clock.toggle)
     control.keypad.on(control.HOLD_KEY, toggle_hold)
     control.keypad.on(control.SLOW_KEY, SlowDown(), SlowUp())
+    control.keypad.on(control.FLIP_KEY, FlipDown(), FlipUp())

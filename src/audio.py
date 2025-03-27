@@ -84,12 +84,12 @@ async def prepare_step(step) -> None:
         return
     else:
         bpm = clock.bpm
+    fx.flip.flip_sample(step)
     current_sample = get_current_sample()
     stretch_rate = bpm / current_sample.bpm
     pitch_rate = 1
     params = StepParams(step, pitch_rate, stretch_rate, current_sample.i)
     fx.joystick_mode.update(params)
-    current_sample = get_current_sample()
     # logger.info(f"prepare step {params.step}")
     log_joystick()
     if params.step is None:
