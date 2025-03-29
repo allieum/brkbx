@@ -26,6 +26,9 @@ FADER2 = Pin("A13")
 FADER3 = Pin("D38")
 FADER4 = Pin("D39")
 
+PLAY_LED = Pin("D19", Pin.OUT)
+PLAY_LED.value(0)
+
 ADC_MAX = 65536
 JOYSTICK_RECORD_LEN = 32
 

@@ -59,6 +59,7 @@ async def main():
     try:
         while True:
             clock = get_running_clock()
+            control.PLAY_LED.value(clock is not None)
             control.print_controls()
             control.keypad.read_keypad()
             # print(f"{control.joystick2.position(), control.joystick2.pressed()}")
