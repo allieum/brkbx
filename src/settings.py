@@ -1,4 +1,4 @@
-from control import RotaryKnob, rotary1
+from control import RotaryKnob, sample_knob
 import typing
 import utility
 

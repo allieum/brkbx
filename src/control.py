@@ -182,7 +182,7 @@ class RotaryKnob:
     def value(self):
         return self.enc.value()
 
-rotary1 = RotaryKnob(RotaryIRQ("D32", "D31"), rotary_button_1)
+sample_knob = RotaryKnob(RotaryIRQ("D32", "D31"), rotary_button_1)
 rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True), rotary_button_2)
 
 prev_controls = ()

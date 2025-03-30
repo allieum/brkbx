@@ -11,7 +11,7 @@ ephemeral_start = False
 sample.voice_on = True
 
 class ButtonDown:
-    def __init__(self, i = None):
+    def __init__(self, i = 0):
         self.i = i
 
     def __call__(self, key):
@@ -34,10 +34,13 @@ class ButtonDown:
             internal_clock.start()
         # fx.button_latch.activate(i * 2, quantize=not ephemeral_start)
         if self.i:
-            set_current_sample(control.rotary1.value() + self.i)
+            set_current_sample(control.sample_knob.value() + self.i)
         sample.voice_on = True
 
 class ButtonUp:
+    def __init__(self, i = 0):
+        self.i = i
+
     def __call__(self, key):
         if held[key]:
             borrowed_cbs.append((key, control.keypad.up_cb[key]))
@@ -51,7 +54,7 @@ class ButtonUp:
     def up(self):
         global ephemeral_start
         if (i := active_sample_key()) is not None:
-            set_current_sample(control.rotary1.value() + i)
+            set_current_sample(control.sample_knob.value() + i)
         if any_pressed_or_held(control.SOUND_KEYS):
             return
         if internal_clock.play_mode and ephemeral_start:
@@ -63,10 +66,13 @@ class SnareDown(ButtonDown):
     def action(self):
         logger.info(f"snare callback")
         fx.button_latch.activate(8, quantize=not ephemeral_start)
+        fx.button_latch.chain(self.i + control.sample_knob.value())
 
 class SnareUp(ButtonUp):
     def action(self):
         fx.button_latch.cancel()
+        # if sample knob moves inbetween snaredown and snareup, will all hell break loose?
+        fx.button_latch.unchain(self.i + control.sample_knob.value())
 
 class SlowDown(ButtonDown):
     def action(self):
@@ -133,7 +139,7 @@ def init():
     for i, key in enumerate(control.SAMPLE_KEYS):
         control.keypad.on(key, ButtonDown(i), ButtonUp())
     for i, key in enumerate(control.SNARE_KEYS):
-        control.keypad.on(key, SnareDown(i), SnareUp())
+        control.keypad.on(key, SnareDown(i), SnareUp(i))
 
     control.keypad.on(control.PLAY_KEY, internal_clock.toggle)
     control.keypad.on(control.HOLD_KEY, hold_down)

@@ -37,6 +37,13 @@ class Latch:
         # self.length = 1
         self.count = 0
         self.start_step = None
+        self.samples = []
+
+    def chain(self, sample):
+        self.samples.append(sample)
+
+    def unchain(self, sample):
+        self.samples.remove(sample)
 
     def activate(self, step: int, quantize=True):
         # self.length = length
@@ -46,7 +53,6 @@ class Latch:
         # self.step = step - step % length
         self.count = 0
         self.start_step = None
-
 
     def get(self, step: int | None, length: int, start_step = None, quantize=True) -> int:
         if step is None:
@@ -58,6 +64,11 @@ class Latch:
         if self.start_step is None:
             self.start_step = step
         self.count += 1
+        if len(self.samples) > 1 and self.count % length == 0:
+            for i, s in enumerate(self.samples):
+                if self.count % (length * i) == 0:
+                    set_current_sample(s)
+
         logger.info(f"self.step {self.step} step={step} start step = {self.start_step} length {length}")
         return self.step + (step - self.start_step) % length
 
@@ -116,7 +127,6 @@ class SampleFlip:
         self.flipping = True
         self.original_sample = get_current_sample().i
 flip = SampleFlip()
-
 
 class JoystickMode:
     def update(self, params: StepParams):

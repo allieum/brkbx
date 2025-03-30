@@ -7,7 +7,7 @@ from time import ticks_us, ticks_diff
 import audio
 from audio import play_step, prepare_step, audio_out
 from clock import internal_clock, midi_clock, get_running_clock
-from control import rotary1
+from control import sample_knob
 import control
 import ui
 from midi import midi_receive, LOOKAHEAD_SEC
@@ -41,7 +41,7 @@ async def run_internal_clock():
 
 started = False
 midi_clock.bpm_changed = lambda _: asyncio.create_task(prepare_step(0)) if not midi_clock.play_mode else ()
-rotary_settings = RotarySettings(rotary1)
+rotary_settings = RotarySettings(sample_knob)
 
 
 async def main():
@@ -49,7 +49,7 @@ async def main():
     audio.started_preparing_next_step = False
     asyncio.create_task(midi_receive())
     asyncio.create_task(run_internal_clock())
-    sample.current_sample = rotary1.value() % len(get_samples())
+    sample.current_sample = sample_knob.value() % len(get_samples())
     until_step = None
     control.rotary2.button.down_cb = internal_clock.toggle
 
