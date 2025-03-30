@@ -14,15 +14,20 @@ class ButtonDown:
     def __init__(self, i = None):
         self.i = i
 
-    def __call__(self):
-        self.down()
+    def __call__(self, key):
+        self.down(key)
         self.action()
 
     def action(self):
         pass
 
-    def down(self):
+    def down(self, key):
         global ephemeral_start
+        if held[key]:
+            held[key] = False
+            borrowed_cbs.remove((key, control.keypad.up_cb[key]))
+        if control.keypad.any_pressed([control.HOLD_KEY]):
+            held[key] = True
         if not clock_running():
             ephemeral_start = True
             internal_clock.start()
@@ -32,7 +37,11 @@ class ButtonDown:
         sample.voice_on = True
 
 class ButtonUp:
-    def __call__(self):
+    def __call__(self, key):
+        if held[key]:
+            borrowed_cbs.append((key, control.keypad.up_cb[key]))
+        if held[key]:
+            return
         self.up()
         self.action()
 
@@ -41,7 +50,7 @@ class ButtonUp:
 
     def up(self):
         global ephemeral_start
-        if hold or control.keypad.any_pressed(control.SOUND_KEYS):
+        if control.keypad.any_pressed(control.SOUND_KEYS):
             return
         if internal_clock.play_mode and ephemeral_start:
             internal_clock.stop()
@@ -75,14 +84,22 @@ class FlipUp(ButtonUp):
         logger.info(f"cancelled sample flip")
         fx.flip.cancel()
 
-hold = False
-def toggle_hold():
-    global hold
-    hold = not hold
+held = [False] * len(control.HOLDABLE_KEYS)
+borrowed_cbs = []
+def hold_down(*_):
+    global borrowed_cbs
+    for key in [k for k in control.HOLDABLE_KEYS if held[k]]:
+        held[key] = False
+    for key, cb in borrowed_cbs:
+        cb(key)
+    borrowed_cbs = []
+
+    for pressed in control.keypad.any_pressed(control.HOLDABLE_KEYS):
+        held[pressed] = True
 
 def update_leds():
     control.PLAY_LED.value(clock_running())
-    control.HOLD_LED.value(hold)
+    control.HOLD_LED.value(any(held[k] for k in control.HOLDABLE_KEYS))
     control.FLIP_LED.value(fx.flip.flipping)
     control.SLOW_LED.value(fx.button_stretch.is_active())
 
@@ -93,6 +110,6 @@ def init():
         control.keypad.on(key, SnareDown(i), SnareUp())
 
     control.keypad.on(control.PLAY_KEY, internal_clock.toggle)
-    control.keypad.on(control.HOLD_KEY, toggle_hold)
+    control.keypad.on(control.HOLD_KEY, hold_down)
     control.keypad.on(control.SLOW_KEY, SlowDown(), SlowUp())
     control.keypad.on(control.FLIP_KEY, FlipDown(), FlipUp())

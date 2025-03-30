@@ -48,6 +48,7 @@ SLOW_KEY = 16
 FLIP_KEY = 17
 HOLD_KEY = 18
 PLAY_KEY = 19
+HOLDABLE_KEYS = range(18)
 keypad = Keypad(KEY_ROWS, KEY_COLS)
 
 class Pot:

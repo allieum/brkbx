@@ -31,7 +31,7 @@ class InternalClock:
         logger.info("stopping internal clock")
         self.play_mode = False
 
-    def toggle(self):
+    def toggle(self, *_):
         if self.play_mode:
             self.stop()
         else:

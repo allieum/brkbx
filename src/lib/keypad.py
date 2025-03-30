@@ -34,8 +34,8 @@ class Keypad:
         nkeys = len(row_pins) * len(column_pins)
         self.row_pins = row_pins
         self.column_pins = column_pins
-        self.down_cb = [lambda: ()] * nkeys
-        self.up_cb = [lambda: ()] * nkeys
+        self.down_cb = [lambda _: ()] * nkeys
+        self.up_cb = [lambda _: ()] * nkeys
 
         self.key_state = [0] * nkeys
         # for pin in self.row_pins:
@@ -54,10 +54,7 @@ class Keypad:
             self.down_cb[key] = down
 
     def any_pressed(self, keys):
-        for k in keys:
-            if self.key_state[k] is 1:
-                return True
-        return False
+        return [k for k in keys if self.key_state[k] is 1]
 
     def read_keypad(self):
         """
@@ -77,7 +74,7 @@ class Keypad:
                 prev = self.key_state[i]
                 if val != prev:
                     self.key_state[i] = val
-                    self.down_cb[i]() if val is 1 else self.up_cb[i]()
+                    self.down_cb[i](i) if val is 1 else self.up_cb[i](i)
                     if val is 1:
                         print(f"pressed key {i}")
                     else:
