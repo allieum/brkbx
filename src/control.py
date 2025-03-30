@@ -43,6 +43,7 @@ SAMPLE_KEYS = [0, 1, 2, 3,
                8, 9, 10, 11]
 SNARE_KEYS = [4, 5, 6, 7,
               12, 13, 14, 15]
+SNARE_OFFSET = 4
 SLOW_KEY = 16
 FLIP_KEY = 17
 HOLD_KEY = 18

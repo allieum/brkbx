@@ -50,7 +50,9 @@ class ButtonUp:
 
     def up(self):
         global ephemeral_start
-        if control.keypad.any_pressed(control.SOUND_KEYS):
+        if (i := active_sample_key()) is not None:
+            set_current_sample(control.rotary1.value() + i)
+        if any_pressed_or_held(control.SOUND_KEYS):
             return
         if internal_clock.play_mode and ephemeral_start:
             internal_clock.stop()
@@ -104,6 +106,22 @@ def hold_up(*_):
     for key, cb in borrowed_cbs:
         cb(key)
     borrowed_cbs = []
+
+def active_sample_key() -> None | int:
+    for key in control.keypad.any_pressed(control.SAMPLE_KEYS):
+        return key
+    for key in control.keypad.any_pressed(control.SNARE_KEYS):
+        return key - control.SNARE_OFFSET
+    for key in control.SAMPLE_KEYS:
+        if held[key]:
+            return key
+    for key in control.SNARE_KEYS:
+        if held[key]:
+            return key - control.SNARE_OFFSET
+    return None
+
+def any_pressed_or_held(keys):
+    return control.keypad.any_pressed(keys) or any(held[k] for k in keys)
 
 def update_leds():
     control.PLAY_LED.value(clock_running())
