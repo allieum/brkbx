@@ -22,12 +22,13 @@ class ButtonDown:
         pass
 
     def down(self, key):
-        global ephemeral_start
+        global ephemeral_start, hold_only_press
         if held[key]:
             held[key] = False
             borrowed_cbs.remove((key, control.keypad.up_cb[key]))
         if control.keypad.any_pressed([control.HOLD_KEY]):
             held[key] = True
+            hold_only_press = False
         if not clock_running():
             ephemeral_start = True
             internal_clock.start()
@@ -40,7 +41,6 @@ class ButtonUp:
     def __call__(self, key):
         if held[key]:
             borrowed_cbs.append((key, control.keypad.up_cb[key]))
-        if held[key]:
             return
         self.up()
         self.action()
@@ -86,16 +86,24 @@ class FlipUp(ButtonUp):
 
 held = [False] * len(control.HOLDABLE_KEYS)
 borrowed_cbs = []
+hold_only_press = False
 def hold_down(*_):
-    global borrowed_cbs
+    global borrowed_cbs, hold_only_press
+    hold_only_press = True
+
+    for pressed in control.keypad.any_pressed(control.HOLDABLE_KEYS):
+        held[pressed] = True
+        hold_only_press = False
+
+def hold_up(*_):
+    global borrowed_cbs, hold_only_press
+    if not hold_only_press:
+        return
     for key in [k for k in control.HOLDABLE_KEYS if held[k]]:
         held[key] = False
     for key, cb in borrowed_cbs:
         cb(key)
     borrowed_cbs = []
-
-    for pressed in control.keypad.any_pressed(control.HOLDABLE_KEYS):
-        held[pressed] = True
 
 def update_leds():
     control.PLAY_LED.value(clock_running())
