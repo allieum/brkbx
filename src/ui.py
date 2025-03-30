@@ -130,7 +130,8 @@ def any_pressed_or_held(keys):
     return control.keypad.any_pressed(keys) or any(held[k] for k in keys)
 
 def update_leds():
-    control.PLAY_LED.value(clock_running())
+    step = get_current_step()
+    control.PLAY_LED.value(clock_running() and step % 8 < 3)
     control.HOLD_LED.value(any(held[k] for k in control.HOLDABLE_KEYS))
     control.FLIP_LED.value(fx.flip.flipping)
     control.SLOW_LED.value(fx.button_stretch.is_active())
