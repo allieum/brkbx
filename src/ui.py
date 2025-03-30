@@ -80,6 +80,12 @@ def toggle_hold():
     global hold
     hold = not hold
 
+def update_leds():
+    control.PLAY_LED.value(clock_running())
+    control.HOLD_LED.value(hold)
+    control.FLIP_LED.value(fx.flip.flipping)
+    control.SLOW_LED.value(fx.button_stretch.is_active())
+
 def init():
     for i, key in enumerate(control.SAMPLE_KEYS):
         control.keypad.on(key, ButtonDown(i), ButtonUp())

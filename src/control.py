@@ -26,6 +26,9 @@ FADER2 = Pin("A13")
 FADER3 = Pin("D38")
 FADER4 = Pin("D39")
 
+SLOW_LED = Pin("D5", Pin.OUT)
+FLIP_LED = Pin("D6", Pin.OUT)
+HOLD_LED = Pin("D18", Pin.OUT)
 PLAY_LED = Pin("D19", Pin.OUT)
 PLAY_LED.value(0)
 
