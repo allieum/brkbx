@@ -80,8 +80,6 @@ async def main():
                 new_bpm = internal_clock.bpm + delta
                 logger.info(f"internal bpm set to {new_bpm}")
                 internal_clock.bpm = new_bpm
-            if any([b.poll() for b in control.buttons]) and not midi_clock.play_mode and not internal_clock.play_mode:
-                internal_clock.start()
     except (KeyboardInterrupt, Exception) as e:
         print("caught exception {} {}".format(type(e).__name__, e))
         os.umount("/sd")

@@ -3,6 +3,7 @@ from control import joystick, joystick_recording, record_current_history
 from sequence import StepParams
 from sample import CHUNKS, get_samples, set_current_sample, get_current_sample
 from utility import get_logger
+from ui import any_pressed_or_held
 
 import random
 
@@ -38,6 +39,7 @@ class Latch:
         self.count = 0
         self.start_step = None
         self.samples = []
+        self.current_sample = 0
 
     def chain(self, sample):
         self.samples.append(sample)
@@ -45,6 +47,7 @@ class Latch:
     def unchain(self, sample):
         try:
             self.samples.remove(sample)
+            self.current_sample %= len(self.samples)
         except:
             logger.error(f"couldn't remove sample from chain")
 
@@ -68,10 +71,10 @@ class Latch:
             self.start_step = step
         self.count += 1
         if len(self.samples) > 1 and self.count % length == 0:
-            for i, s in enumerate(self.samples):
-                if self.count % (length * (i + 1)) == 0:
-                    logger.info(f"setting chained sample to {s}")
-                    set_current_sample(s)
+            s = self.samples[self.current_sample % len(self.samples)]
+            logger.info(f"setting chained sample to {s}")
+            set_current_sample(s)
+            self.current_sample = (self.current_sample + 1) % len(self.samples)
 
         logger.info(f"self.step {self.step} step={step} start step = {self.start_step} length {length}")
         return self.step + (step - self.start_step) % length
@@ -194,8 +197,8 @@ class GateRepeatMode(JoystickMode):
         gate_knob = control.gate_fader.value()
         self.gate.ratio = 1 if x > 0.3 else 1.2 + x if x < -0.3 else gate_knob
         self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else control.gate_length_fader.value()
-        if control.keypad.any_pressed(control.buttons):
-            self.gate.period = length
+        if any_pressed_or_held(control.SNARE_KEYS):
+            self.gate.period = length * max(1, len(button_latch.samples)) * (control.gate_length_fader.value() // 4 + 1)
         # self.gate.period //= 2
         # TODO !play_step could be expressed as params.step = None
         # if params.step:

@@ -61,7 +61,7 @@ class Sample:
         # crude assumption, can make better guess based on length and likely bpm range
         total_beats = 4
         # self.bpm = round(total_beats / length * 60)
-        self.bpm = total_beats / length * 60
+        self.bpm = round(total_beats / length * 60, 2)
         logger.info(f"calculated bpm is {self.bpm} for {wav_filename}")
 
         logger.info(f"{nsamples} total samples, {self.chunk_size} bytes per chunk")

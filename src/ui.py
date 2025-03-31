@@ -11,7 +11,7 @@ ephemeral_start = False
 sample.voice_on = True
 
 class ButtonDown:
-    def __init__(self, i = 0):
+    def __init__(self, i = -1):
         self.i = i
 
     def __call__(self, key):
@@ -33,7 +33,7 @@ class ButtonDown:
             ephemeral_start = True
             internal_clock.start()
         # fx.button_latch.activate(i * 2, quantize=not ephemeral_start)
-        if self.i:
+        if self.i is not -1:
             set_current_sample(control.sample_knob.value() + self.i)
         sample.voice_on = True
 

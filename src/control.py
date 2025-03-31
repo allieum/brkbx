@@ -2,7 +2,7 @@ from typing import Tuple
 from adafruit_simplemath import map_range
 from keypad import Keypad
 from machine import Pin, ADC, Signal
-from rotary_irq_rp2 import RotaryIRQ
+from rotary_irq_rp2 import RotaryIRQ, Rotary
 from collections import deque
 import utility
 
@@ -75,7 +75,7 @@ class SelectorPot():
         return self.choices[self.knob.value()]
 
 gate_fader = Pot(FADER1, 0, 1, continuous=True)
-gate_length_fader = SelectorPot(FADER2, [2, 3, 4, 6, 8, 16, 32])
+gate_length_fader = SelectorPot(FADER2, [2, 4, 8, 16, 32])
 latch_length_fader = SelectorPot(FADER3, [1, 2, 3, 4, 6, 8, 16, 32])
 flip_speed_fader = SelectorPot(FADER4, [1, 2, 4, 8, 16, 32])
 
@@ -183,7 +183,11 @@ class RotaryKnob:
         return self.enc.value()
 
 NBANKS = 2 # hack
-sample_knob = RotaryKnob(RotaryIRQ("D32", "D31", min_val=0, max_val=BANK_SIZE * (NBANKS - 1), incr=BANK_SIZE), rotary_button_1)
+sample_knob = RotaryKnob(RotaryIRQ("D32", "D31",
+                                   min_val=0,
+                                   max_val=BANK_SIZE * (NBANKS - 1),
+                                   range_mode=Rotary.RANGE_BOUNDED,
+                                   incr=BANK_SIZE), rotary_button_1)
 rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True), rotary_button_2)
 
 prev_controls = ()
