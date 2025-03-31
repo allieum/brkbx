@@ -43,7 +43,6 @@ SAMPLE_KEYS = [0, 1, 2, 3,
                8, 9, 10, 11]
 SNARE_KEYS = [4, 5, 6, 7,
               12, 13, 14, 15]
-SNARE_OFFSET = 4
 SLOW_KEY = 16
 FLIP_KEY = 17
 HOLD_KEY = 18
@@ -79,7 +78,7 @@ gate_length_fader = SelectorPot(FADER2, [1, 2, 4, 8, 16, 32])
 latch_length_fader = SelectorPot(FADER3, [1, 2, 3, 4, 6, 8, 16, 32])
 flip_speed_fader = SelectorPot(FADER4, [1, 2, 4, 8, 16, 32])
 
-timestretch_grain_knob = Pot(KNOB1, 0.001, 0.150, continuous=True, digits=3)
+timestretch_grain_knob = Pot(KNOB1, 0.0001, 0.080, continuous=True, digits=4)
 knob2 = Pot(KNOB2, -1, 1, continuous=True)
 knob3 = Pot(KNOB3, -1, 1, continuous=True)
 volume_knob = Pot(KNOB4, 0, 1, continuous=True, digits=2)
@@ -188,8 +187,8 @@ rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True), rotary_button_2)
 prev_controls = ()
 def print_controls():
     global prev_controls
-    pass
     values = 1
+    # values = timestretch_grain_knob.value()
     # values = (gate_fader.value(), latch_length_fader.value(), fader3.value(), fader4.value(),
     #           gate_length_fader.value(), knob2.value(), knob3.value(), knob4.value())
     if values == prev_controls:

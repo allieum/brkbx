@@ -101,3 +101,4 @@ def set_current_sample(i):
     current_sample = i
     if len(samples) > 0:
         current_sample %= len(samples)
+    logger.info(f"set sample to {i}:{samples[current_sample].name}")

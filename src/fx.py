@@ -43,7 +43,10 @@ class Latch:
         self.samples.append(sample)
 
     def unchain(self, sample):
-        self.samples.remove(sample)
+        try:
+            self.samples.remove(sample)
+        except:
+            logger.error(f"couldn't remove sample from chain")
 
     def activate(self, step: int, quantize=True):
         # self.length = length
@@ -66,7 +69,8 @@ class Latch:
         self.count += 1
         if len(self.samples) > 1 and self.count % length == 0:
             for i, s in enumerate(self.samples):
-                if self.count % (length * i) == 0:
+                if self.count % (length * (i + 1)) == 0:
+                    logger.info(f"setting chained sample to {s}")
                     set_current_sample(s)
 
         logger.info(f"self.step {self.step} step={step} start step = {self.start_step} length {length}")
@@ -80,6 +84,7 @@ class Latch:
             return
         self.step = None
         self.count = 0
+        self.samples = []
         logger.info("latch cancelled")
 
 class Stretch:
@@ -152,19 +157,26 @@ class GateRepeatMode(JoystickMode):
         base_length = control.latch_length_fader.value()
         length = 3 if x > 0.9 else 2 if x > 0.5 else 1
         length *= base_length
+
+
         # length = control.latch_length_fader.value()
         # logger.info(f"{length}")
         if x > 0.1:
             params.step = self.latch.get(params.step, length)
         if params.step % length != 0:
-            params.set_pitch(self.pitch.get(0))
+            params.alter_pitch(self.pitch.get(0))
         elif y < -0.7:
-            params.set_pitch(self.pitch.get(-1))
+            params.alter_pitch(self.pitch.get(-1))
             # self.latch.reps = 4
         # elif y < -0.2
         #     params.set_pitch(self.pitch.get(-1, limit=length * 4))
         elif y > 0.7:
-            params.set_pitch(self.pitch.get(+1))
+            params.alter_pitch(self.pitch.get(+1))
+
+        x2, y2 = control.joystick2.position()
+        if abs(x2) > 0.1 or abs(y2) > 0.1:
+            pitch_mod = round(6 * (x2 + y2))
+            params.alter_pitch(pitch_mod)
 
         button_length = length if x > 0.1 else control.latch_length_fader.value()
         if button_latch.is_active():
@@ -182,7 +194,7 @@ class GateRepeatMode(JoystickMode):
         gate_knob = control.gate_fader.value()
         self.gate.ratio = 1 if x > 0.3 else 1.2 + x if x < -0.3 else gate_knob
         self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else control.gate_length_fader.value()
-        if any(b.pressed() for b in control.buttons):
+        if control.keypad.any_pressed(control.buttons):
             self.gate.period = length
         # self.gate.period //= 2
         # TODO !play_step could be expressed as params.step = None
@@ -213,10 +225,10 @@ class PitchStretchMode(JoystickMode):
             self.stretch.cancel()
 
         if y < -0.5:
-            params.set_pitch(self.pitch.get(+1))
+            params.alter_pitch(self.pitch.get(+1))
             params.step = self.latch.get(params.step, 1, params.step)
         elif y > 0.5:
-            params.set_pitch(self.pitch.get(-1))
+            params.alter_pitch(self.pitch.get(-1))
             params.step = self.latch.get(params.step, 1, params.step)
         else:
             self.pitch.cancel()

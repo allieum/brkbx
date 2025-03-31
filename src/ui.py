@@ -54,6 +54,7 @@ class ButtonUp:
     def up(self):
         global ephemeral_start
         if (i := active_sample_key()) is not None:
+            logger.info(f"active sample key {i}")
             set_current_sample(control.sample_knob.value() + i)
         if any_pressed_or_held(control.SOUND_KEYS):
             return
@@ -70,9 +71,11 @@ class SnareDown(ButtonDown):
 
 class SnareUp(ButtonUp):
     def action(self):
-        fx.button_latch.cancel()
         # if sample knob moves inbetween snaredown and snareup, will all hell break loose?
         fx.button_latch.unchain(self.i + control.sample_knob.value())
+        if control.keypad.any_pressed(control.SNARE_KEYS):
+            return
+        fx.button_latch.cancel()
 
 class SlowDown(ButtonDown):
     def action(self):
@@ -107,6 +110,7 @@ def hold_up(*_):
     global borrowed_cbs, hold_only_press
     if not hold_only_press:
         return
+    logger.info(f"releasing all held keys")
     for key in [k for k in control.HOLDABLE_KEYS if held[k]]:
         held[key] = False
     for key, cb in borrowed_cbs:
@@ -114,16 +118,18 @@ def hold_up(*_):
     borrowed_cbs = []
 
 def active_sample_key() -> None | int:
-    for key in control.keypad.any_pressed(control.SAMPLE_KEYS):
-        return key
-    for key in control.keypad.any_pressed(control.SNARE_KEYS):
-        return key - control.SNARE_OFFSET
-    for key in control.SAMPLE_KEYS:
+    for i, key in enumerate(control.SAMPLE_KEYS):
+        if control.keypad.pressed(key):
+            return i
+    for i, key in enumerate(control.SNARE_KEYS):
+        if control.keypad.pressed(key):
+            return i
+    for i, key in enumerate(control.SAMPLE_KEYS):
         if held[key]:
-            return key
-    for key in control.SNARE_KEYS:
+            return i
+    for i, key in enumerate(control.SNARE_KEYS):
         if held[key]:
-            return key - control.SNARE_OFFSET
+            return i
     return None
 
 def any_pressed_or_held(keys):
@@ -143,6 +149,6 @@ def init():
         control.keypad.on(key, SnareDown(i), SnareUp(i))
 
     control.keypad.on(control.PLAY_KEY, internal_clock.toggle)
-    control.keypad.on(control.HOLD_KEY, hold_down)
+    control.keypad.on(control.HOLD_KEY, hold_down, hold_up)
     control.keypad.on(control.SLOW_KEY, SlowDown(), SlowUp())
     control.keypad.on(control.FLIP_KEY, FlipDown(), FlipUp())

@@ -56,6 +56,9 @@ class Keypad:
     def any_pressed(self, keys):
         return [k for k in keys if self.key_state[k] is 1]
 
+    def pressed(self, key):
+        return self.key_state[key] is 1
+
     def read_keypad(self):
         """
         Read the keypad and return the pressed key.
@@ -75,9 +78,5 @@ class Keypad:
                 if val != prev:
                     self.key_state[i] = val
                     self.down_cb[i](i) if val is 1 else self.up_cb[i](i)
-                    if val is 1:
-                        print(f"pressed key {i}")
-                    else:
-                        print(f"released key {i}")
                 i += 1
             col_pin.value(0)
