@@ -49,6 +49,7 @@ HOLD_KEY = 18
 PLAY_KEY = 19
 SOUND_KEYS = range(18)
 HOLDABLE_KEYS = range(18)
+BANK_SIZE = len(SAMPLE_KEYS)
 keypad = Keypad(KEY_ROWS, KEY_COLS)
 
 class Pot:
@@ -74,7 +75,7 @@ class SelectorPot():
         return self.choices[self.knob.value()]
 
 gate_fader = Pot(FADER1, 0, 1, continuous=True)
-gate_length_fader = SelectorPot(FADER2, [1, 2, 4, 8, 16, 32])
+gate_length_fader = SelectorPot(FADER2, [2, 3, 4, 6, 8, 16, 32])
 latch_length_fader = SelectorPot(FADER3, [1, 2, 3, 4, 6, 8, 16, 32])
 flip_speed_fader = SelectorPot(FADER4, [1, 2, 4, 8, 16, 32])
 
@@ -181,7 +182,8 @@ class RotaryKnob:
     def value(self):
         return self.enc.value()
 
-sample_knob = RotaryKnob(RotaryIRQ("D32", "D31"), rotary_button_1)
+NBANKS = 2 # hack
+sample_knob = RotaryKnob(RotaryIRQ("D32", "D31", min_val=0, max_val=BANK_SIZE * (NBANKS - 1), incr=BANK_SIZE), rotary_button_1)
 rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True), rotary_button_2)
 
 prev_controls = ()
