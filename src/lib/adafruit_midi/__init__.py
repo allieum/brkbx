@@ -150,6 +150,7 @@ class MIDI:
 
         self._skipped_bytes += skipped
         if msg is not None:
+            self.send(msg)
             msgs.append(msg)
 
         while msg is not None:
@@ -163,6 +164,7 @@ class MIDI:
 
             self._skipped_bytes += skipped
             if msg is not None:
+                self.send(msg)
                 msgs.append(msg)
 
         # msg could still be None at this point, e.g. in middle of monster SysEx
