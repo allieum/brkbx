@@ -16,7 +16,7 @@ class InternalClock:
         self.bpm_changed = lambda _: ()
 
     def start(self):
-        if midi_clock.is_active():
+        if midi_clock.play_mode):
             logger.error(f"can't start internal clock when midi clock is running")
         logger.info("starting internal clock")
         self.song_position = -1

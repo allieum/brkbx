@@ -51,6 +51,11 @@ class Latch:
         except:
             logger.error(f"couldn't remove sample from chain")
 
+    def quantized_chain_length(self, length):
+        unquantized_length = len(self.samples) * length
+        quantized_length = unquantized_length + (8 - unquantized_length % 8)
+        return quantized_length
+
     def activate(self, step: int, quantize=True):
         # self.length = length
         delta = step % 4 if quantize else 0
@@ -70,7 +75,7 @@ class Latch:
         if self.start_step is None:
             self.start_step = step
         self.count += 1
-        if len(self.samples) > 1 and self.count % length == 0:
+        if len(self.samples) > 1 and self.count % length == 0 and self.count % self.quantized_chain_length(length) < len(self.samples) * length:
             s = self.samples[self.current_sample % len(self.samples)]
             logger.info(f"setting chained sample to {s}")
             set_current_sample(s)
