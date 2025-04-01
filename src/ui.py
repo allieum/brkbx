@@ -73,7 +73,7 @@ class SnareUp(ButtonUp):
     def action(self):
         # if sample knob moves inbetween snaredown and snareup, will all hell break loose?
         fx.button_latch.unchain(self.i + control.sample_knob.value())
-        if control.keypad.any_pressed(control.SNARE_KEYS):
+        if any_pressed_or_held(control.SNARE_KEYS):
             return
         fx.button_latch.cancel()
 

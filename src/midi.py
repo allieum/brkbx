@@ -6,6 +6,7 @@ from adafruit_midi.spp import SPP
 from adafruit_midi.timing_clock import TimingClock
 from adafruit_midi.start import Start
 from adafruit_midi.stop import Stop
+from adafruit_midi.program_change import ProgramChange
 from clock import midi_clock
 from time import ticks_us
 import asyncio
@@ -27,7 +28,7 @@ async def midi_receive():
     started_preparing_next_step = False
     i = 0
     # TODO: can't handle multibyte messages, increasing buffer size delays receipt of TimingClock so keep it fixed for now
-    midi = MIDI(midi_in=sreader, midi_out=uart, in_buf_size=3)
+    midi = MIDI(midi_in=sreader, midi_out=uart, in_buf_size=6, out_channel=15)
     ticks = ticks_us()
     while True:
         msgs = await midi.receive()
@@ -40,6 +41,8 @@ async def midi_receive():
                 if step is None:
                     continue
                 await audio.play_step(step, midi_clock.bpm)
+            elif isinstance(msg, ProgramChange):
+                logger.info(f"got progam change")
             elif isinstance(msg, Start):
                 midi_clock.start()
             elif isinstance(msg, Stop):
