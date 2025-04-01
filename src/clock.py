@@ -16,6 +16,8 @@ class InternalClock:
         self.bpm_changed = lambda _: ()
 
     def start(self):
+        if midi_clock.is_active():
+            logger.error(f"can't start internal clock when midi clock is running")
         logger.info("starting internal clock")
         self.song_position = -1
         self.prev_ticks = None
@@ -66,6 +68,7 @@ class InternalClock:
 
 class MidiClock:
     BPM_INTERVAL = 48
+    ACTIVE_MS = 1000
 
     def __init__(self):
         self.clock_count = 0
@@ -81,6 +84,8 @@ class MidiClock:
         self.bpm_changed = lambda _: ()
 
     def start(self):
+        if internal_clock.play_mode:
+            internal_clock.stop()
         self.song_position = -1
         self.midi_continue()
         self.last_clock_ticks = 0
@@ -129,6 +134,9 @@ class MidiClock:
         # logger.info(f"{self.last_step_ticks + ticks_per_step}")
         return ticks_add(self.last_step_ticks, ticks_per_step)
 
+    def is_active(self):
+        return ticks_diff(ticks_us(), self.last_clock_ticks) <= self.ACTIVE_MS * 1000
+
     # add logging to measure drift for playing steps
     def process_clock(self, ticks) -> int | None:
         """ process midi timing clock message
@@ -144,7 +152,7 @@ class MidiClock:
         # if bpm != 0:
         #     self.bpm = bpm
         # logger.info(f"secs per clock: {secs_per_tick}")
-        # self.last_clock_ticks = ticks
+        self.last_clock_ticks = ticks
         if self.start_ticks is None:
             self.start_ticks = ticks
         new_position = None
@@ -198,3 +206,11 @@ def clock_running():
 
 def get_current_step():
     return 0 if (clock := get_running_clock()) is None else clock.song_position
+
+def toggle_clock(*_):
+    clock = get_running_clock()
+    logger.info(f"toggling clock {clock} to stop")
+    if clock:
+        clock.stop()
+    else:
+        midi_clock.start() if midi_clock.is_active() else internal_clock.start()

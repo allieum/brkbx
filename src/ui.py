@@ -1,7 +1,7 @@
 import control
 import sample
 from sample import set_current_sample
-from clock import internal_clock, clock_running, get_current_step
+from clock import internal_clock, clock_running, get_current_step, toggle_clock
 import fx
 import utility
 
@@ -148,7 +148,7 @@ def init():
     for i, key in enumerate(control.SNARE_KEYS):
         control.keypad.on(key, SnareDown(i), SnareUp(i))
 
-    control.keypad.on(control.PLAY_KEY, internal_clock.toggle)
+    control.keypad.on(control.PLAY_KEY, toggle_clock)
     control.keypad.on(control.HOLD_KEY, hold_down, hold_up)
     control.keypad.on(control.SLOW_KEY, SlowDown(), SlowUp())
     control.keypad.on(control.FLIP_KEY, FlipDown(), FlipUp())
