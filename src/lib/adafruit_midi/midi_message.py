@@ -294,7 +294,10 @@ class MIDIMessage:
     def __bytes__(self) -> bytes:
         """Return the ``bytes`` wire protocol representation of the object
         with channel number applied where appropriate."""
-        return bytes([self._STATUS])
+        try:
+            return bytes([self._STATUS])
+        except:
+            return bytes([self.status])
 
     # databytes value present to keep interface uniform but unused
     # A default method for constructing message objects with no data.

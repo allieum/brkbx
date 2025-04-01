@@ -183,6 +183,7 @@ class MIDI:
         if isinstance(msg, MIDIMessage):
             msg.channel = channel
             # bytes(object) does not work in uPy
+            # print(f"midi msg {msg}")
             data = msg.__bytes__()  # pylint: disable=unnecessary-dunder-call
         else:
             data = bytearray()
