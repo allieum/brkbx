@@ -15,6 +15,7 @@ import sample
 from sample import get_samples, set_current_sample
 from settings import RotarySetting, RotarySettings
 import utility
+import display
 
 # ===== mysteriously, keypad module only works when these are defined here =========
 Pin("D1", Pin.IN, Pin.PULL_DOWN)
