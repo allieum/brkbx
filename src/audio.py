@@ -18,7 +18,6 @@ logger = utility.get_logger(__name__)
 SCK_PIN = 'D21'
 WS_PIN = 'D20'
 SD_PIN = 'D7'
-MCK_PIN = 'D23'
 I2S_ID = 1
 BUFFER_LENGTH_IN_BYTES = 40000
 # ======= I2S CONFIGURATION =======
@@ -34,7 +33,7 @@ audio_out = I2S(
     sck=Pin(SCK_PIN),
     ws=Pin(WS_PIN),
     sd=Pin(SD_PIN),
-    mck=Pin(MCK_PIN),
+    mck=None,
     mode=I2S.TX,
     bits=WAV_SAMPLE_SIZE_IN_BITS,
     format=FORMAT,
