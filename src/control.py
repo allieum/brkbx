@@ -83,7 +83,7 @@ latch_length_fader = SelectorPot(FADER3, [1, 2, 3, 4, 6, 8, 16, 32])
 flip_speed_fader = SelectorPot(FADER4, [1, 2, 4, 8, 16, 32])
 
 timestretch_grain_knob = Pot(KNOB1, 0.0001, 0.080, continuous=True, digits=4)
-knob2 = Pot(KNOB2, -1, 1, continuous=True)
+filter_knob = Pot(KNOB2, -1, 1, continuous=True)
 knob3 = Pot(KNOB3, -1, 1, continuous=True)
 volume_knob = Pot(KNOB4, 0, 1, continuous=True, digits=2)
 

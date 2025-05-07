@@ -118,7 +118,8 @@ async def prepare_step(step) -> None:
                                          target_samples,
                                          pitched_samples,
                                          params.pitch_rate,
-                                         volume)
+                                         volume,
+                                         control.filter_knob.value())
         # logger.info(f"volume : {volume}")
         logger.debug(f"finished writing {step} res={bytes_written}, took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
 

@@ -37,6 +37,7 @@ params = [
     flip_length := Param("flip length", control.flip_speed_fader.value, step_printer),
     volume := Param("volume", control.volume_knob.value, lambda x: round(x * 100), min_change=0.1),
     ts_grain := Param("TS grain", control.timestretch_grain_knob.value, ms_printer, min_change=0.01),
-    bank := Param("bank", lambda: control.current_bank, lambda bank: bank + 1)
+    bank := Param("bank", lambda: control.current_bank, lambda bank: bank + 1),
+    lpf_hpf := Param("LPF/HPF", control.filter_knob.value)
     # todo banks, bpm, pitch stick
 ]
