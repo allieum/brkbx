@@ -1,3 +1,4 @@
+STEPS_PER_BAR = 32
 
 class StepParams:
     def __init__(self, step, pitch_rate, stretch_rate, sample):

@@ -4,11 +4,16 @@ from sample import set_current_sample
 from clock import internal_clock, clock_running, get_current_step, toggle_clock
 import fx
 import utility
+import asyncio
+from control import LEDS
 
 logger = utility.get_logger(__name__)
 
 ephemeral_start = False
 sample.voice_on = True
+
+def bank_offset():
+    return control.current_bank * control.BANK_SIZE
 
 class ButtonDown:
     def __init__(self, i = -1):
@@ -34,7 +39,7 @@ class ButtonDown:
             internal_clock.start()
         # fx.button_latch.activate(i * 2, quantize=not ephemeral_start)
         if self.i is not -1:
-            set_current_sample(control.sample_knob.value() + self.i)
+            set_current_sample(bank_offset() + self.i)
         sample.voice_on = True
 
 class ButtonUp:
@@ -55,7 +60,7 @@ class ButtonUp:
         global ephemeral_start
         if (i := active_sample_key()) is not None:
             logger.info(f"active sample key {i}")
-            set_current_sample(control.sample_knob.value() + i)
+            set_current_sample(bank_offset() + i)
         if any_pressed_or_held(control.SOUND_KEYS):
             return
         if internal_clock.play_mode and ephemeral_start:
@@ -67,12 +72,12 @@ class SnareDown(ButtonDown):
     def action(self):
         logger.info(f"snare callback")
         fx.button_latch.activate(8, quantize=not ephemeral_start)
-        fx.button_latch.chain(self.i + control.sample_knob.value())
+        fx.button_latch.chain(self.i + bank_offset())
 
 class SnareUp(ButtonUp):
     def action(self):
         # if sample knob moves inbetween snaredown and snareup, will all hell break loose?
-        fx.button_latch.unchain(self.i + control.sample_knob.value())
+        fx.button_latch.unchain(self.i + bank_offset())
         if any_pressed_or_held(control.SNARE_KEYS):
             return
         fx.button_latch.cancel()
@@ -136,11 +141,39 @@ def any_pressed_or_held(keys):
     return control.keypad.any_pressed(keys) or any(held[k] for k in keys)
 
 def update_leds():
+    if running_animation:
+        return
     step = get_current_step()
     control.PLAY_LED.value(clock_running() and step % 8 < 3)
     control.HOLD_LED.value(any(held[k] for k in control.HOLDABLE_KEYS))
     control.FLIP_LED.value(fx.flip.flipping)
     control.SLOW_LED.value(fx.button_stretch.is_active())
+
+running_animation = False
+async def startup_animation():
+    global running_animation
+    # Bounce back and forth, accelerating
+    running_animation = True
+    for delay in [30, 20]:
+        for led in LEDS:
+            led.value(1)
+            await asyncio.sleep_ms(delay)
+            led.value(0)
+        for led in reversed(LEDS):
+            led.value(1)
+            await asyncio.sleep_ms(delay)
+            led.value(0)
+
+    # Flash all together
+    for i in range(1, 3):
+        for led in LEDS:
+            led.value(1)
+        await asyncio.sleep_ms(i * 50)
+        for led in LEDS:
+            led.value(0)
+        await asyncio.sleep_ms(i * 50)
+    running_animation = False
+
 
 def init():
     for i, key in enumerate(control.SAMPLE_KEYS):

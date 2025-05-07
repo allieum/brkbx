@@ -37,6 +37,8 @@ import time
 __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MIDI.git"
 
+MAX_RECV = 3
+
 
 class MIDI:
     """MIDI helper class. ``midi_in`` or ``midi_out`` *must* be set or both together.
@@ -131,7 +133,7 @@ class MIDI:
             # bytes_in = data if data is not None else self._midi_in.read(self._in_buf_size - len(self._in_buf))
             if self._midi_in is None:
                 return []
-            bytes_in = await self._midi_in.read(self._in_buf_size - len(self._in_buf))
+            bytes_in = await self._midi_in.read(min(MAX_RECV, self._in_buf_size - len(self._in_buf)))
             # print(f"{time.ticks_us() / 1000000} receive midi msg")
             if bytes_in:
                 if self._debug:

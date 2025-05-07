@@ -32,8 +32,8 @@ class RotarySettings:
     def update(self) -> typing.Any | None:
         if self.rotary.pressed() and not self.was_pressed:
             self.was_pressed = True
-            self.setting = (self.setting + 1) % len(self.settings)
-            logger.info(f"setting changed to {self.setting}")
+            # self.setting = (self.setting + 1) % len(self.settings)
+            # logger.info(f"setting changed to {self.setting}")
         if not self.rotary.pressed():
             self.was_pressed = False
         current = self.rotary.value()

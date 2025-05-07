@@ -10,12 +10,14 @@ from clock import internal_clock, midi_clock, get_running_clock
 from control import sample_knob
 import control
 import ui
-from midi import midi_receive, LOOKAHEAD_SEC
+from midi import midi_receive, LOOKAHEAD_SEC, usb_midi_receive
 import sample
 from sample import get_samples, set_current_sample
 from settings import RotarySetting, RotarySettings
 import utility
 import display
+import param
+
 
 # ===== mysteriously, keypad module only works when these are defined here =========
 Pin("D1", Pin.IN, Pin.PULL_DOWN)
@@ -30,6 +32,7 @@ os.mount(sd, "/sd")
 
 sample.init()
 ui.init()
+display.init()
 
 async def run_internal_clock():
     while True:
@@ -48,11 +51,13 @@ rotary_settings = RotarySettings(sample_knob)
 async def main():
     logger.info(f"entered main() len samples {len(get_samples())}")
     audio.started_preparing_next_step = False
+    asyncio.create_task(ui.startup_animation())
     asyncio.create_task(midi_receive())
+    asyncio.create_task(usb_midi_receive())
     asyncio.create_task(run_internal_clock())
+    asyncio.create_task(display.update_display())
     sample.current_sample = sample_knob.value() % len(get_samples())
     until_step = None
-    control.rotary2.button.down_cb = internal_clock.toggle
 
     logger.info(f"preparing first step")
     await prepare_step(0)
@@ -63,6 +68,9 @@ async def main():
             ui.update_leds()
             control.print_controls()
             control.keypad.read_keypad()
+            control.rotary2.poll()
+            for p in param.params:
+                p.get()
             # print(f"{control.joystick2.position(), control.joystick2.pressed()}")
             if clock and not audio.started_preparing_next_step and (until_step := ticks_diff(clock.predict_next_step_ticks(), ticks_us()) / 1000000) <= LOOKAHEAD_SEC:
                 logger.debug(f"starting to prepare step {clock.song_position + 1} {until_step}s from now")

@@ -26,11 +26,14 @@ FADER2 = Pin("A13")
 FADER3 = Pin("D38")
 FADER4 = Pin("D39")
 
-SLOW_LED = Pin("D5", Pin.OUT)
-FLIP_LED = Pin("D6", Pin.OUT)
-HOLD_LED = Pin("D18", Pin.OUT)
-PLAY_LED = Pin("D19", Pin.OUT)
+LEDS = [
+    SLOW_LED := Pin("D5", Pin.OUT),
+    FLIP_LED := Pin("D6", Pin.OUT),
+    HOLD_LED := Pin("D23", Pin.OUT),
+    PLAY_LED := Pin("D22", Pin.OUT),
+]
 PLAY_LED.value(0)
+
 
 ADC_MAX = 65536
 JOYSTICK_RECORD_LEN = 32
@@ -97,6 +100,7 @@ class Button:
         Button.id += 1
 
     def poll(self) -> bool | None:
+        # logger.info(f"polling button {self.id} {self.pin.value()}")
         new_state = None
         if (value := self.pin.value()) != self.prev_value:
             if new_state := self.pin.value() is 1:
@@ -107,12 +111,12 @@ class Button:
         return new_state
 
     def down(self):
-        logger.info(f"button {self.id} pressed")
+        logger.debug(f"button {self.id} pressed")
         if self.down_cb is not None:
             self.down_cb()
 
     def up(self):
-        logger.info(f"button {self.id} released")
+        logger.debug(f"button {self.id} released")
         if self.up_cb is not None:
             self.up_cb()
 
@@ -154,8 +158,8 @@ def record_current_history(step):
 
 ROT_CLK = "D33"
 ROT_DT = "D34"
-rotary_button_1 = Button(Signal(Pin("D37", Pin.IN, Pin.PULL_UP), invert=True))
-rotary_button_2 = Button(Signal(Pin("D36", Pin.IN, Pin.PULL_UP), invert=True))
+rotary_button_1 = Button(Signal(Pin("D36", Pin.IN, Pin.PULL_UP), invert=True))
+rotary_button_2 = Button(Signal(Pin("D37", Pin.IN, Pin.PULL_UP), invert=True))
 
 buttons = [
     # Button(Signal(Pin("D1", Pin.IN, Pin.PULL_UP), invert=True)),
@@ -189,6 +193,13 @@ sample_knob = RotaryKnob(RotaryIRQ("D32", "D31",
                                    range_mode=Rotary.RANGE_BOUNDED,
                                    incr=BANK_SIZE), rotary_button_1)
 rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True), rotary_button_2)
+
+current_bank = 0
+def switch_bank():
+    global current_bank
+    current_bank = (current_bank + 1) % NBANKS
+    # logger.info(f"sample offset set to {current_bank}")
+rotary_button_2.down_cb = switch_bank
 
 prev_controls = ()
 def print_controls():

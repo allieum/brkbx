@@ -12,8 +12,26 @@ from time import ticks_us
 import asyncio
 import audio
 import utility
+from usb.device.midi import MIDIInterface
+import usb.device
 
 logger = utility.get_logger(__name__)
+
+class USBMidi(MIDIInterface):
+    def on_midi_event(self, cin, midi0, midi1, midi2):
+        logger.info(f"got usb midi event {cin} {midi0} {midi1} {midi2}")
+
+async def usb_midi_receive():
+    # usb_midi = USBMidi()
+    # usb.device.get().init(usb_midi, builtin_driver=True)
+    # logger.info(f"waiting for usb midi host...")
+    # while not usb_midi.is_open():
+    #     asyncio.sleep_ms(1000)
+    # logger.info(f"start usb midi receive loop")
+    # while usb_midi.is_open():
+    #     asyncio.sleep_ms(1000)
+    logger.info(f"end usb midi receive loop")
+
 
 # MIDI config
 midi_rx = Pin("D28", Pin.IN)
