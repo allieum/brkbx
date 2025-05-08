@@ -14,7 +14,7 @@ class StepParams:
         """
         joystick_mode.update(self)
 
-    def alter_pitch(self, semitones: int):
+    def alter_pitch(self, semitones):
         """
         alter pitch chromatically without affecting length
         """

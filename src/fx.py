@@ -162,9 +162,9 @@ class GateRepeatMode(JoystickMode):
         x, y = joystick.position(params.step)
         if joystick.pressed():
             record_current_history(params.step)
-        base_length = control.latch_length_fader.value()
+        # base_length = control.latch_length_fader.value()
         length = 4 if x > 0.9 else 2 if x > 0.5 else 1
-        length *= base_length
+        # length *= base_length
 
 
         # length = control.latch_length_fader.value()
@@ -183,7 +183,7 @@ class GateRepeatMode(JoystickMode):
 
         x2, y2 = control.joystick2.position()
         if abs(x2) > 0.1 or abs(y2) > 0.1:
-            pitch_mod = round(6 * (x2 + y2))
+            pitch_mod = 12 * (x2 + y2)
             params.alter_pitch(pitch_mod)
 
         button_length = length if x > 0.1 else control.latch_length_fader.value()
@@ -200,8 +200,8 @@ class GateRepeatMode(JoystickMode):
             self.pitch.cancel()
 
         gate_knob = control.gate_fader.value()
-        self.gate.ratio = 1 if x > 0.3 else 1.2 + x if x < -0.3 else gate_knob
-        self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else control.gate_length_fader.value()
+        self.gate.ratio = 1 if x > 0.3 else 1.3 + x if x < -0.3 else gate_knob
+        self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else 8 # control.gate_length_fader.value()
         if any_pressed_or_held(control.SNARE_KEYS):
             self.gate.period = length * max(1, len(button_latch.samples)) * (control.gate_length_fader.value() // 8 + 1)
         # self.gate.period //= 2
