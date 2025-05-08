@@ -34,6 +34,10 @@ class ButtonDown:
         if control.keypad.any_pressed([control.HOLD_KEY]):
             held[key] = True
             hold_only_press = False
+
+        if not key in control.SOUND_KEYS:
+            return
+
         if not clock_running():
             ephemeral_start = True
             internal_clock.start()
@@ -50,18 +54,18 @@ class ButtonUp:
         if held[key]:
             borrowed_cbs.append((key, control.keypad.up_cb[key]))
             return
-        self.up()
+        self.up(key)
         self.action()
 
     def action(self):
         pass
 
-    def up(self):
+    def up(self, key):
         global ephemeral_start
         if (i := active_sample_key()) is not None:
             logger.info(f"active sample key {i}")
             set_current_sample(bank_offset() + i)
-        if any_pressed_or_held(control.SOUND_KEYS):
+        if not key in control.SOUND_KEYS or any_pressed_or_held(control.SOUND_KEYS):
             return
         if internal_clock.play_mode and ephemeral_start:
             internal_clock.stop()

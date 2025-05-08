@@ -64,6 +64,8 @@ class Latch:
         # self.step = step - step % length
         self.count = 0
         self.start_step = None
+        if quantize:
+            self.start_step = self.step
 
     def get(self, step: int | None, length: int, start_step = None, quantize=True) -> int:
         if step is None:
