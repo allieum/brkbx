@@ -1,4 +1,4 @@
-xrun:
+xrun: deploy-native
 	cd src && mpr xrun -f main.py
 
 mountsd:

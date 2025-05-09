@@ -3,6 +3,12 @@
 #include "py/mpprint.h"
 #include <math.h>
 
+#define MIN_LPF 200.0f
+#define MAX_LPF 12000.0f
+
+#define MIN_HPF 800.0f
+#define MAX_HPF 8000.0f
+
 static float sinfest(float x) {
     // Normalize x to 0..2π
     x = x - ((int)(x / (2 * 3.14159f))) * 2 * 3.14159f;
@@ -29,15 +35,20 @@ static void init_filter(BiquadFilter* f, float filter_depth, float samplerate) {
 
     // Convert filter_depth to cutoff frequency
     if (is_highpass) {
-        cutoff = 500.0f + (filter_depth * 4000.0f);
+        cutoff = MIN_HPF + (filter_depth * (MAX_HPF - MIN_HPF));
     } else {
         // More gradual LPF curve, especially for small negative values
-        cutoff = 12000.0f - (fabs(filter_depth) * 10000.0f);
+        cutoff = MAX_LPF - (fabs(filter_depth) * (MAX_LPF - MIN_LPF));
     }
 
     // Ensure cutoff stays in safe range
-    cutoff = cutoff < 200.0f ? 200.0f : cutoff;
-    cutoff = cutoff > samplerate/2.5f ? samplerate/2.5f : cutoff;
+    if (is_highpass) {
+        cutoff = cutoff > samplerate/2.5f ? samplerate/2.5f : cutoff;
+    } else {
+        cutoff = MAX(cutoff, 900.0f);
+    }
+
+    /* mp_printf(&mp_plat_print, "native_wav:filter_init:: filter_depth=%f cutoff=%f\n", filter_depth, cutoff); */
 
     float w0 = 2.0f * 3.14159f * cutoff / samplerate;
     float alpha = sinfest(w0) * 0.707f;
@@ -61,7 +72,10 @@ static void init_filter(BiquadFilter* f, float filter_depth, float samplerate) {
     f->x1 = f->x2 = f->y1 = f->y2 = 0.0f;
 }
 
-static float process_sample(BiquadFilter* f, float in) {
+static float process_sample(BiquadFilter* f, float in, float filter_depth) {
+    if (fabs(filter_depth) < 0.05) {
+        return in;
+    }
     float out = f->a0 * in + f->a1 * f->x1 + f->a2 * f->x2 -
                 f->b1 * f->y1 - f->b2 * f->y2;
 
@@ -115,7 +129,7 @@ static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
             }
 
             // Apply filter and volume
-            sample = process_sample(&filter, sample) * volume;
+            sample = process_sample(&filter, sample, filter_depth) * volume;
             out_buf[samples_written++] = (int16_t)sample;
             /* mp_printf(&mp_plat_print, "native_wav: block_i = %d, j = %d\n", block_i, j); */
             if (samples_written == target_samples) {
