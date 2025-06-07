@@ -133,6 +133,7 @@ class MIDI:
             # bytes_in = data if data is not None else self._midi_in.read(self._in_buf_size - len(self._in_buf))
             if self._midi_in is None:
                 return []
+            # bytes_in = await self._midi_in.read(self._in_buf_size - len(self._in_buf))
             bytes_in = await self._midi_in.read(min(MAX_RECV, self._in_buf_size - len(self._in_buf)))
             # print(f"{time.ticks_us() / 1000000} receive midi msg")
             if bytes_in:

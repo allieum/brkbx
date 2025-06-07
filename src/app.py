@@ -10,7 +10,7 @@ from clock import internal_clock, midi_clock, get_running_clock
 from control import sample_knob
 import control
 import ui
-from midi import midi_receive, LOOKAHEAD_SEC, usb_midi_receive
+from midi import midi_receive, LOOKAHEAD_SEC
 import sample
 from sample import get_samples, set_current_sample
 from settings import RotarySetting, RotarySettings
@@ -47,13 +47,11 @@ started = False
 midi_clock.bpm_changed = lambda _: asyncio.create_task(prepare_step(0)) if not midi_clock.play_mode else ()
 rotary_settings = RotarySettings(sample_knob)
 
-
 async def main():
     logger.info(f"entered main() len samples {len(get_samples())}")
     audio.started_preparing_next_step = False
     asyncio.create_task(ui.startup_animation())
     asyncio.create_task(midi_receive())
-    asyncio.create_task(usb_midi_receive())
     asyncio.create_task(run_internal_clock())
     asyncio.create_task(display.update_display())
     sample.current_sample = sample_knob.value() % len(get_samples())
