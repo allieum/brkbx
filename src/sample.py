@@ -36,11 +36,14 @@ def find_wav_data(wav_file) -> Tuple[int, int]:
 CHANNELS = 1
 BYTES_PER_SAMPLE = 2
 SAMPLE_RATE = 44100
-CHUNKS = 32
+CHUNKS_PER_BEAT = 8
 MAX_CHUNK_SIZE = 44100
 
 
 class Sample:
+    BPM_MIN = 90
+    BPM_MAX = 180
+
     wav_samples = bytearray(MAX_CHUNK_SIZE)
     wav_samples_mv = memoryview(wav_samples)
 
@@ -53,16 +56,21 @@ class Sample:
 
         nsamples = self.wav_size / CHANNELS / BYTES_PER_SAMPLE
         length = nsamples / SAMPLE_RATE
+
+        total_beats = 4
+        while True:
+            self.bpm = round(total_beats / length * 60, 2)
+            if self.bpm in range(Sample.BPM_MIN, Sample.BPM_MAX + 1):
+                logger.info(f"calculated bpm assuming {total_beats} is {self.bpm} for {wav_filename}")
+                break
+            total_beats *= 2
+
         # can rounding cause trouble here? ie compounding offset, could do it in get_chunk instead
-        self.samples_per_chunk = math.ceil(nsamples / CHUNKS)
+        self.chunks = CHUNKS_PER_BEAT * total_beats
+        self.samples_per_chunk = math.ceil(nsamples / self.chunks)
         self.chunk_size = self.samples_per_chunk * BYTES_PER_SAMPLE * CHANNELS
         logger.info(f"{wav_filename} is {length:.3f}s")
 
-        # crude assumption, can make better guess based on length and likely bpm range
-        total_beats = 4
-        # self.bpm = round(total_beats / length * 60)
-        self.bpm = round(total_beats / length * 60, 2)
-        logger.info(f"calculated bpm is {self.bpm} for {wav_filename}")
 
         logger.info(f"{nsamples} total samples, {self.chunk_size} bytes per chunk")
         if self.chunk_size > MAX_CHUNK_SIZE:
@@ -71,7 +79,7 @@ class Sample:
 
     def get_chunk(self, i: int) -> memoryview:
         """ read the ith chunk of wav file into memory and return it """
-        self.wav_file.seek(self.wav_offset + i % CHUNKS * self.chunk_size)
+        self.wav_file.seek(self.wav_offset + i % self.chunks * self.chunk_size)
         # logger.info(f"reading offset {offset}")
         self.wav_file.readinto(self.wav_samples_mv)
         # logger.info(f"samples array {self.wav_samples[:64]}")
@@ -87,7 +95,8 @@ voice_on = False
 current_sample = 0
 def init():
     global samples
-    samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")
+    samples = load_samples("/sd/samples/y2k")
+    # samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")
     logger.info(f"loaded {len(samples)} samples")
 
 def get_samples():

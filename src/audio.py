@@ -9,7 +9,7 @@ from sequence import StepParams
 import native_wav
 import fx
 import sample
-from clock import get_running_clock
+from clock import get_running_clock, internal_clock
 from sample import get_current_sample
 
 logger = utility.get_logger(__name__)
@@ -72,17 +72,17 @@ async def play_step(step, bpm):
         # logger.info(f"wrote step {step} to i2s")
 
 
-
-async def prepare_step(step) -> None:
-    global target_samples, bytes_written, step_start_bytes
-    ticks = ticks_us()
+planned_step_time = None
+async def prepare_step(step, step_time = None) -> None:
+    global target_samples, bytes_written, step_start_bytes, planned_step_time
     clock = get_running_clock()
     if clock is None:
-        logger.error(f"no clock running?")
-        bpm = 143
-        return
+        bpm = internal_clock.bpm
     else:
         bpm = clock.bpm
+    # logger.info(f"step {step} planned for {step_time}")
+    planned_step_time = step_time
+    ticks = ticks_us()
     fx.flip.flip_sample(step)
     current_sample = get_current_sample()
     stretch_rate = bpm / current_sample.bpm
@@ -99,8 +99,11 @@ async def prepare_step(step) -> None:
     stretch_block_length = control.timestretch_grain_knob.value()
     stretch_block_input_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
     pitched_samples = round(current_sample.samples_per_chunk / params.pitch_rate)
+    if params.pitch_rate != 1:
+        logger.info(f"pitch rate {params.pitch_rate}")
     if stretch_block_input_samples > pitched_samples:
         logger.warning(f"stretch block bigger than sample chunk {stretch_block_input_samples} vs {current_sample.samples_per_chunk}, using smaller")
+        logger.info(f"stretch block: {stretch_block_length}")
         stretch_block_input_samples = pitched_samples
     stretch_block_output_samples = round(1 / params.stretch_rate * stretch_block_input_samples)
     # logger.info(f"play rate for step {step} is {rate}")
@@ -124,6 +127,9 @@ async def prepare_step(step) -> None:
         logger.debug(f"finished writing {step} res={bytes_written}, took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
 
 async def write_audio(step, start, end):
+    if planned_step_time and (lag := ticks_diff(ticks_us(), planned_step_time) / 1000000) > 0.003:
+        logger.warning(f"step {step} (planned for {planned_step_time}) lag is too high ({lag}), skipping step")
+        return
     swriter.out_buf = audio_out_mv[start: end]
     logger.debug(f"{step} writing audio from {start} to {end}")
     await swriter.drain()

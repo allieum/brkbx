@@ -6,37 +6,37 @@ import midi
 logger = utility.get_logger(__name__, "DEBUG")
 
 class InternalClock:
-    RESET_START_INTERVAL = 1024
+    RESET_START_INTERVAL = 64 * 3
 
     def __init__(self):
         self.song_position = 0
         self.play_mode = False
         self.bpm = 136
         self.start_ticks = None
-        self.step_count = 0
         self.bpm_changed = lambda _: ()
-        self.clock_count = 0
+        self.clock_count = -1
+        self.clock_stopped = lambda: ()
 
     def set_song_position(self, spp):
         self.song_position = 2 * spp - 1
 
-    def start(self):
+    def start(self, ticks):
         if midi_clock.play_mode:
             logger.error(f"can't start internal clock when midi clock is running")
         logger.info("starting internal clock")
         self.song_position = -1
         self.prev_ticks = None
-        self.start_ticks = ticks_us()
-        self.step_count = 0
+        self.start_ticks = ticks
         self.play_mode = True
-        self.clock_count = 0
+        self.clock_count = -1
+        self.step_count = -1
         # self.prev_ticks = ticks_us()
 
     def midi_continue(self):
         """ proceess midi start message """
         logger.info("received midi start")
         self.play_mode = True
-        self.step_count = -1
+        self.clock_count = -1
 
     def stop(self):
         """ proceess midi stop message """
@@ -44,18 +44,19 @@ class InternalClock:
             return
         logger.info("stopping internal clock")
         self.play_mode = False
+        self.clock_stopped()
 
     def toggle(self, *_):
         if self.play_mode:
             self.stop()
         else:
-            self.start()
+            self.start(ticks_us())
 
     def predict_next_step_ticks(self):
         ticks_per_beat = 60 / self.bpm * 1000000
         ticks_per_step = round(ticks_per_beat / 8)
         # logger.info(f"{self.last_step_ticks + ticks_per_step}")
-        result = ticks_add(self.start_ticks, ticks_per_step * self.step_count)
+        result = ticks_add(self.start_ticks, ticks_per_step * (self.step_count + 1))
         # logger.info(f"next step predicted for {result}")
         return result
 
@@ -64,30 +65,67 @@ class InternalClock:
         ticks_per_beat = 60 / self.bpm * 1000000
         ticks_per_clock = round(ticks_per_beat / 24)
         # logger.info(f"{self.last_step_ticks + ticks_per_step}")
-        result = ticks_add(self.start_ticks, ticks_per_clock * self.clock_count)
+        result = ticks_add(self.start_ticks, ticks_per_clock * (self.clock_count + 1))
         # logger.info(f"next step predicted for {result}")
         return result
 
+    def test_predict(self):
+        ticks_per_beat = 60 / self.bpm * 1000000
+        ticks_per_clock = round(ticks_per_beat / 24)
+        ticks_per_step = round(ticks_per_beat / 8)
+        self.clock_count = -1
+        self.step_count = -1
+        self.start_ticks = ticks_us()
+        prev_clock_ticks = None
+        prev_step_ticks = None
+        for i in range(196):
+            logger.info(f"test iteration {i}")
+            next_clock_ticks = self.predict_next_clock_ticks()
+            next_step_ticks = self.predict_next_step_ticks()
+            if prev_clock_ticks and (diff := ticks_diff(next_clock_ticks, prev_clock_ticks)) != ticks_per_clock:
+                logger.error(f"incorrect clock spacing at clock count {self.clock_count}: {diff / 1000000} vs {ticks_per_clock / 1000000}")
+            if prev_step_ticks and self.clock_count % 3 == 0 and (diff := ticks_diff(next_step_ticks, prev_step_ticks)) != ticks_per_step:
+                logger.error(f"incorrect step spacing at clock count {self.clock_count}: {diff / 1000000} vs {ticks_per_step / 1000000}")
+            if prev_step_ticks and self.clock_count % 3 != 0 and (diff := ticks_diff(next_step_ticks, prev_step_ticks)) != 0:
+                logger.error(f"incorrect step spacing at clock count {self.clock_count}: {diff / 1000000} vs 0")
+            if self.clock_count >= self.RESET_START_INTERVAL:
+                self.reset_start_ticks()
+            logger.info(f"next step ticks: {next_step_ticks / 1000000} cc {self.clock_count}")
+            self.clock_count += 1
+            if self.clock_count % 3 == 0:
+                self.step_count += 1
+            prev_clock_ticks = next_clock_ticks
+            prev_step_ticks = next_step_ticks
+
+    def reset_start_ticks(self):
+        self.clock_count = 0
+        self.step_count = 0
+        ticks_per_beat = 60 / self.bpm * 1000000
+        ticks_per_clock = round(ticks_per_beat / 24)
+        interval_ticks = self.RESET_START_INTERVAL * ticks_per_clock
+        self.start_ticks = ticks_add(self.start_ticks, interval_ticks)
 
     def process_clock(self, ticks) -> int | None:
         """ update internal clock state
         :returns which 32nd note step clock has landed on, if any
         """
-        if self.play_mode and ticks >= self.predict_next_clock_ticks():
-            self.clock_count += 1
-            # midi.midi.send(midi.TimingClock())
-        if ticks < self.predict_next_step_ticks() or not self.play_mode:
+        if not self.play_mode:
             return None
-        if (diff := ticks_diff(ticks, self.predict_next_step_ticks()) / 1000000) > 0.005:
-            logger.error(f"step was {diff} late")
-        if self.step_count >= self.RESET_START_INTERVAL:
-            self.step_count = 0
-            # normalize ticks to bpm to preserve start time , prevent drift?
-            self.start_ticks = ticks
+        if (diff := ticks_diff(ticks, self.predict_next_clock_ticks()) / 1000000) < 0:
+            return None
+        if self.clock_count >= self.RESET_START_INTERVAL:
+            self.reset_start_ticks()
+        self.clock_count += 1
+        # midi.midi.send(midi.TimingClock())
+        if self.clock_count % 3 != 0:
+            return None
+        if diff > 0.005:
+            logger.error(f"step was {diff} late: clock count {self.clock_count} start ticks {self.start_ticks}")
         self.song_position += 1
         self.step_count += 1
+        # if self.step_count != self.song_position % (self.RESET_START_INTERVAL / 3):
+        #     logger.info(f"{self.step_count} vs {self.song_position}")
         return self.song_position
-
 
     # todo update_bpm method which resets start_ticks and step_count, on next step (?)
     # def update_bpm(self, bpm):
@@ -109,8 +147,9 @@ class MidiClock:
         self.prev_ticks = None
         self.start_ticks = None
         self.bpm_changed = lambda _: ()
+        self.clock_stopped = lambda: ()
 
-    def start(self):
+    def start(self, ticks):
         if internal_clock.play_mode:
             internal_clock.stop()
         self.song_position = -1
@@ -134,6 +173,7 @@ class MidiClock:
         """ proceess midi stop message """
         logger.info("received midi stop")
         self.play_mode = False
+        self.clock_stopped()
 
     def update_bpm(self, ticks) -> int:
         # interval_steps = step % self.BPM_INTERVAL
@@ -156,6 +196,7 @@ class MidiClock:
         return bpm
 
     def predict_next_step_ticks(self):
+        # todo vulnerable to drift / TC buildup,, try a larger window??
         ticks_per_beat = 60 / self.bpm * 1000000
         ticks_per_step = round(ticks_per_beat / 8)
         # logger.info(f"{self.last_step_ticks + ticks_per_step}")
@@ -242,4 +283,4 @@ def toggle_clock(*_):
     if clock:
         clock.stop()
     else:
-        midi_clock.start() if midi_clock.is_active() else internal_clock.start()
+        midi_clock.start(ticks_us()) if midi_clock.is_active() else internal_clock.start(ticks_us())

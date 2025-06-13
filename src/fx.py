@@ -1,7 +1,7 @@
 import control
 from control import joystick, joystick_recording, record_current_history
 from sequence import StepParams
-from sample import CHUNKS, get_samples, set_current_sample, get_current_sample
+from sample import get_samples, set_current_sample, get_current_sample
 from utility import get_logger
 from ui import any_pressed_or_held
 
@@ -105,8 +105,9 @@ class Stretch:
         if self.stretch_start is None:
             self.stretch_start = step
             self.stretch_start -= self.stretch_start % 8
-        steps = (step - self.stretch_start) % (CHUNKS / rate)
-        stretched_slice = (self.stretch_start + rate * steps) % CHUNKS
+        chunks = get_current_sample().chunks
+        steps = (step - self.stretch_start) % (chunks / rate)
+        stretched_slice = (self.stretch_start + rate * steps) % chunks
         if stretched_slice == round(stretched_slice):
             logger.info(f"stretched slice {stretched_slice}")
             return int(stretched_slice)
@@ -183,12 +184,13 @@ class GateRepeatMode(JoystickMode):
         elif y > 0.7:
             params.alter_pitch(self.pitch.get(+1))
 
-        x2, y2 = control.joystick2.position()
-        if abs(x2) > 0.1 or abs(y2) > 0.1:
-            pitch_mod = 12 * (x2 + y2)
-            params.alter_pitch(pitch_mod)
+        # x2, y2 = control.joystick2.position()
+        # if abs(x2) > 0.1 or abs(y2) > 0.1:
+        #     pitch_mod = 12 * (x2 + y2)
+        #     params.alter_pitch(pitch_mod)
 
-        button_length = length if x > 0.1 else control.latch_length_fader.value()
+        # button_length = length if x > 0.1 else control.latch_length_fader.value()
+        button_length = length if x > 0.1 else 2
         if button_latch.is_active():
             params.step = button_latch.get(params.step, button_length)
         # elif y > 0.2:

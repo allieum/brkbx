@@ -5,6 +5,7 @@ import asyncio
 
 logger = get_logger(__name__)
 
+DISABLE_DISPLAY = True
 
 W = 128
 H = 64
@@ -13,6 +14,9 @@ MAX_HORZ_CHARS = W // CHAR_SIZE
 oled = None
 def init():
     global oled
+    if DISABLE_DISPLAY:
+        logger.info("running without display because DISABLE_DISPLAY flag is set")
+        return
     try:
         i2c = I2C(id=0)
         oled = SSD1306_I2C(W, H, i2c, addr=0x3d)
@@ -46,7 +50,7 @@ def show_param_update(name, value):
         padding -= 4
     center_text(f"{name}{' ' * (padding + 1)}{value}")
 
-DISPLAY_UPDATE_INTERVAL = 0.1  # seconds between display checks
+DISPLAY_UPDATE_INTERVAL = 0.3  # seconds between display checks
 DISPLAY_MESSAGE_DURATION = 3.0  # seconds to show message
 DISPLAY_STEPS = int(DISPLAY_MESSAGE_DURATION / DISPLAY_UPDATE_INTERVAL)
 
@@ -56,19 +60,23 @@ async def update_display():
         return
     while True:
         if pending_update:
+            logger.info(f"updating display with param update")
             name, value = pending_update
             oled.fill(0)
             show_param_update(name, value)
             oled.show()
             pending_update = None
 
+            logger.info(f"finished updating display with param update")
             for _ in range(DISPLAY_STEPS):
                 if pending_update:
                     break
                 await asyncio.sleep(DISPLAY_UPDATE_INTERVAL)
 
             if not pending_update:
+                logger.info(f"clearing screen")
                 oled.fill(0)
                 oled.show()
+                logger.info(f"done clearing screen")
 
         await asyncio.sleep(DISPLAY_UPDATE_INTERVAL)

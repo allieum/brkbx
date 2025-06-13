@@ -16,7 +16,6 @@ logger = utility.get_logger(__name__)
 
 # Respond to midi/stop start, but use internal timing rather than TimingClock messages
 USE_INTERNAL_CLOCK = False
-# USE_INTERNAL_CLOCK = True
 
 # MIDI config
 midi_rx = Pin("D28", Pin.IN)
@@ -48,7 +47,7 @@ async def midi_receive():
             elif isinstance(msg, ProgramChange):
                 logger.info(f"got progam change")
             elif isinstance(msg, Start):
-                clock.start()
+                clock.start(ticks)
             elif isinstance(msg, Stop):
                 clock.stop()
             elif isinstance(msg, Continue):

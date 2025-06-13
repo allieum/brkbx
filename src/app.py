@@ -34,10 +34,13 @@ sample.init()
 ui.init()
 display.init()
 
+# TODO rearchitect so that this task only runs when clock is running
 async def run_internal_clock():
+    # internal_clock.test_predict()
     while True:
         # todo only do this frequently if clock is running
-        await asyncio.sleep_ms(1 if internal_clock.play_mode else 5)
+        await asyncio.sleep_ms(1 if internal_clock.play_mode else 30)
+        # await asyncio.sleep_ms(1)
         step = internal_clock.process_clock(ticks_us())
         if step is None:
             continue
@@ -45,6 +48,8 @@ async def run_internal_clock():
 
 started = False
 midi_clock.bpm_changed = lambda _: asyncio.create_task(prepare_step(0)) if not midi_clock.play_mode else ()
+midi_clock.clock_stopped = lambda: asyncio.create_task(prepare_step(0))
+internal_clock.clock_stopped = lambda: asyncio.create_task(prepare_step(0))
 rotary_settings = RotarySettings(sample_knob)
 
 async def main():
@@ -64,25 +69,26 @@ async def main():
         while True:
             clock = get_running_clock()
             ui.update_leds()
-            control.print_controls()
+            # control.print_controls()
             control.keypad.read_keypad()
-            control.rotary2.poll()
             for p in param.params:
                 p.get()
             # print(f"{control.joystick2.position(), control.joystick2.pressed()}")
-            if clock and not audio.started_preparing_next_step and (until_step := ticks_diff(clock.predict_next_step_ticks(), ticks_us()) / 1000000) <= LOOKAHEAD_SEC:
-                logger.debug(f"starting to prepare step {clock.song_position + 1} {until_step}s from now")
+            if clock and not audio.started_preparing_next_step and (until_step :=
+                                                                    ticks_diff(step_time := clock.predict_next_step_ticks(),
+                                                                               ticks_us()) / 1000000) <= LOOKAHEAD_SEC:
+                # logger.info(f"starting to prepare step {clock.song_position + 1} {until_step}s from now")
                 audio.started_preparing_next_step = True
-                await prepare_step(clock.song_position + 1)
+                await prepare_step(clock.song_position + 1, step_time)
 
-            await asyncio.sleep(0.005)
-            if (new_val := rotary_settings.update()) is not None:
-                if rotary_settings.setting == RotarySetting.BPM:
-                    internal_clock.bpm = new_val
-                    logger.info(f"internal bpm set to {new_val}")
-                elif rotary_settings.setting == RotarySetting.SAMPLE:
-                    set_current_sample(new_val % len(get_samples()))
-                    logger.info(f"switched to sample {sample.get_current_sample().name}")
+            await asyncio.sleep(0.005 if clock else 0.1)
+            # if (new_val := rotary_settings.update()) is not None:
+            #     if rotary_settings.setting == RotarySetting.BPM:
+            #         internal_clock.bpm = new_val
+            #         logger.info(f"internal bpm set to {new_val}")
+            #     elif rotary_settings.setting == RotarySetting.SAMPLE:
+            #         set_current_sample(new_val % len(get_samples()))
+            #         logger.info(f"switched to sample {sample.get_current_sample().name}")
             if (delta := control.rotary2.poll()) != 0:
                 new_bpm = internal_clock.bpm + delta
                 logger.info(f"internal bpm set to {new_bpm}")

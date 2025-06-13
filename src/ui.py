@@ -6,6 +6,7 @@ import fx
 import utility
 import asyncio
 from control import LEDS
+from time import ticks_us
 
 logger = utility.get_logger(__name__)
 
@@ -40,7 +41,7 @@ class ButtonDown:
 
         if not clock_running():
             ephemeral_start = True
-            internal_clock.start()
+            internal_clock.start(ticks_us())
         # fx.button_latch.activate(i * 2, quantize=not ephemeral_start)
         if self.i is not -1:
             set_current_sample(bank_offset() + self.i)
