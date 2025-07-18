@@ -83,7 +83,7 @@ class SnareUp(ButtonUp):
     def action(self):
         # if sample knob moves inbetween snaredown and snareup, will all hell break loose?
         fx.button_latch.unchain(self.i + bank_offset())
-        if any_pressed_or_held(control.SNARE_KEYS):
+        if any_pressed_or_held(control.LATCH_KEYS):
             return
         fx.button_latch.cancel()
 
@@ -131,13 +131,13 @@ def active_sample_key() -> None | int:
     for i, key in enumerate(control.SAMPLE_KEYS):
         if control.keypad.pressed(key):
             return i
-    for i, key in enumerate(control.SNARE_KEYS):
+    for i, key in enumerate(control.LATCH_KEYS):
         if control.keypad.pressed(key):
             return i
     for i, key in enumerate(control.SAMPLE_KEYS):
         if held[key]:
             return i
-    for i, key in enumerate(control.SNARE_KEYS):
+    for i, key in enumerate(control.LATCH_KEYS):
         if held[key]:
             return i
     return None
@@ -183,7 +183,7 @@ async def startup_animation():
 def init():
     for i, key in enumerate(control.SAMPLE_KEYS):
         control.keypad.on(key, ButtonDown(i), ButtonUp())
-    for i, key in enumerate(control.SNARE_KEYS):
+    for i, key in enumerate(control.LATCH_KEYS):
         control.keypad.on(key, SnareDown(i), SnareUp(i))
 
     control.keypad.on(control.PLAY_KEY, toggle_clock)

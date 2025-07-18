@@ -41,13 +41,12 @@ JOYSTICK_RECORD_LEN = 32
 KEY_ROWS = [Pin("D1", Pin.IN, Pin.PULL_DOWN), Pin("D2", Pin.IN, Pin.PULL_DOWN), Pin("D3", Pin.IN, Pin.PULL_DOWN), Pin("D4", Pin.IN, Pin.PULL_DOWN)]
 KEY_COLS = [Pin("D9"), Pin("D10"), Pin("D11"), Pin("D12"), Pin("D0")]
 
-
+# REDO layout! more fx keys!!
 SAMPLE_KEYS = [0, 1, # 2,
-               3,
-               8, 9, 10, 11]
-SNARE_KEYS = [4, 5, # 6,
-              7,
-              12, 13, 14, 15]
+               3, 4, 5, 6, 7]
+LATCH_KEYS = [8, 9, 10, 11]
+SNARE_KEY = 12
+# fun keys, delay pitch who knows! cute stuff
 SLOW_KEY = 16
 FLIP_KEY = 17
 HOLD_KEY = 18

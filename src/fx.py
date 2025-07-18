@@ -206,8 +206,8 @@ class GateRepeatMode(JoystickMode):
         gate_knob = control.gate_fader.value()
         self.gate.ratio = 1 if x > 0.3 else 1.3 + x if x < -0.3 else gate_knob
         self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else 8 # control.gate_length_fader.value()
-        if any_pressed_or_held(control.SNARE_KEYS):
-            self.gate.period = length * max(1, len(button_latch.samples)) * (control.gate_length_fader.value() // 8 + 1)
+        # if any_pressed_or_held(control.SNARE_KEYS):
+        #     self.gate.period = length * max(1, len(button_latch.samples)) * (control.gate_length_fader.value() // 8 + 1)
         # self.gate.period //= 2
         # TODO !play_step could be expressed as params.step = None
         # if params.step:
