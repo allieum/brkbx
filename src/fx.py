@@ -35,7 +35,7 @@ class Latch:
     def __init__(self):
         self.step: int | None = None
         self.reps: int | None = None
-        # self.length = 1
+        self.length = 1
         self.count = 0
         self.start_step = None
         self.samples = []
@@ -56,7 +56,7 @@ class Latch:
         quantized_length = unquantized_length + (8 - unquantized_length % 8)
         return quantized_length
 
-    def activate(self, step: int, quantize=True):
+    def activate(self, step: int, quantize=True, length=None):
         # self.length = length
         delta = step % 4 if quantize else 0
         self.step = step - delta
@@ -66,8 +66,12 @@ class Latch:
         self.start_step = None
         if quantize:
             self.start_step = self.step
+        if length is not None:
+            self.length = length
 
-    def get(self, step: int | None, length: int, start_step = None, quantize=True) -> int:
+    def get(self, step: int | None, length = None, start_step = None, quantize=True) -> int:
+        if length is None:
+            length = self.length
         if step is None:
             return self.step if self.step else 0
         if self.step is None or self.reps and self.count >= self.reps * length:

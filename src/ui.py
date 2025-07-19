@@ -5,7 +5,7 @@ from clock import internal_clock, clock_running, get_current_step, toggle_clock
 import fx
 import utility
 import asyncio
-from control import LEDS
+from control import LATCH_KEYS, LEDS
 from time import ticks_us
 
 logger = utility.get_logger(__name__)
@@ -73,16 +73,18 @@ class ButtonUp:
             ephemeral_start = False
         sample.voice_on = False
 
-class SnareDown(ButtonDown):
-    def action(self):
-        logger.info(f"snare callback")
-        fx.button_latch.activate(8, quantize=not ephemeral_start)
-        fx.button_latch.chain(self.i + bank_offset())
+# SnareDown, SnareUp
+def active_latch_lengths():
+    return [LATCH_LENGTHS[i] for i, _ in enumerate(any_pressed_or_held(control.LATCH_KEYS))]
 
-class SnareUp(ButtonUp):
+LATCH_LENGTHS = [1, 2, 4, 8]
+class LatchDown(ButtonDown):
     def action(self):
-        # if sample knob moves inbetween snaredown and snareup, will all hell break loose?
-        fx.button_latch.unchain(self.i + bank_offset())
+        logger.info(f"latch callback")
+        fx.button_latch.activate(get_current_step(), quantize=not ephemeral_start, length=LATCH_LENGTHS[self.i])
+
+class LatchUp(ButtonUp):
+    def action(self):
         if any_pressed_or_held(control.LATCH_KEYS):
             return
         fx.button_latch.cancel()
@@ -143,7 +145,8 @@ def active_sample_key() -> None | int:
     return None
 
 def any_pressed_or_held(keys):
-    return control.keypad.any_pressed(keys) or any(held[k] for k in keys)
+    # todo should return union of sets
+    return control.keypad.any_pressed(keys) or [k for k in keys if held[k]]
 
 def update_leds():
     if running_animation:
@@ -184,7 +187,7 @@ def init():
     for i, key in enumerate(control.SAMPLE_KEYS):
         control.keypad.on(key, ButtonDown(i), ButtonUp())
     for i, key in enumerate(control.LATCH_KEYS):
-        control.keypad.on(key, SnareDown(i), SnareUp(i))
+        control.keypad.on(key, LatchDown(i), LatchUp(i))
 
     control.keypad.on(control.PLAY_KEY, toggle_clock)
     control.keypad.on(control.HOLD_KEY, hold_down, hold_up)
