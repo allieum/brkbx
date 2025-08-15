@@ -54,7 +54,7 @@ async def play_step(step, bpm):
     global started_preparing_next_step, last_input_step, stretch_write
     started_preparing_next_step = False
     do_play_step = sample.voice_on or fx.joystick_mode.has_input()
-    if not fx.joystick_mode.gate.is_on(step) or not do_play_step:
+    if (len(fx.button_latch.lengths) == 0 and not fx.joystick_mode.gate.is_on(step)) or not do_play_step:
         stretch_write = 0
         return
 

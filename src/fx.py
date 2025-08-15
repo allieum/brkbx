@@ -27,7 +27,18 @@ class Gate:
     def __init__(self):
         self.period: int = 4
         self.ratio = 1.0
+        self.lengths = []
+
     def is_on(self, step):
+        if len(self.lengths):
+            combined_period = sum(self.lengths)
+            past_periods = 0
+            for current_period in self.lengths:
+                if (period_step := (step - past_periods) % combined_period) < current_period:
+                    on_steps = self.ratio * current_period
+                    return period_step <= on_steps
+                past_periods += current_period
+
         on_steps = self.ratio * self.period
         return step % self.period <= on_steps
 
@@ -40,6 +51,7 @@ class Latch:
         self.start_step = None
         self.samples = []
         self.current_sample = 0
+        self.lengths = []
 
     def chain(self, sample):
         self.samples.append(sample)
@@ -56,9 +68,10 @@ class Latch:
         quantized_length = unquantized_length + (8 - unquantized_length % 8)
         return quantized_length
 
-    def activate(self, step: int, quantize=True, length=None):
-        # self.length = length
-        delta = step % 4 if quantize else 0
+    def activate(self, step: int, quantize=True, length = 2):
+        self.length = length
+        self.lengths.append(length)
+        delta = step % max(2, length) if quantize else 0
         self.step = step - delta
         logger.info(f"latching on step {step} -> quantized to {self.step}")
         # self.step = step - step % length
@@ -66,8 +79,6 @@ class Latch:
         self.start_step = None
         if quantize:
             self.start_step = self.step
-        if length is not None:
-            self.length = length
 
     def get(self, step: int | None, length = None, start_step = None, quantize=True) -> int:
         if length is None:
@@ -75,7 +86,7 @@ class Latch:
         if step is None:
             return self.step if self.step else 0
         if self.step is None or self.reps and self.count >= self.reps * length:
-            self.activate(step, quantize)
+            self.activate(step, quantize, length)
         if start_step:
             self.start_step = start_step
         if self.start_step is None:
@@ -92,6 +103,11 @@ class Latch:
 
     def is_active(self):
         return self.step is not None
+
+    def unlatch(self, length):
+        self.lengths.remove(length)
+        if len(self.lengths) > 0:
+            self.length = self.lengths[-1]
 
     def cancel(self):
         if not self.is_active():
@@ -170,7 +186,7 @@ class GateRepeatMode(JoystickMode):
         if joystick.pressed():
             record_current_history(params.step)
         # base_length = control.latch_length_fader.value()
-        length = 4 if x > 0.9 else 2 if x > 0.5 else 1
+        length = 4 if x > 0.9 else 2 if x > 0.5 else button_latch.length
         # length *= base_length
 
 
@@ -194,9 +210,9 @@ class GateRepeatMode(JoystickMode):
         #     params.alter_pitch(pitch_mod)
 
         # button_length = length if x > 0.1 else control.latch_length_fader.value()
-        button_length = length if x > 0.1 else 2
+        button_length = length if x > 0.1 else None
         if button_latch.is_active():
-            params.step = button_latch.get(params.step, button_length)
+            params.step = button_latch.get(params.step, button_length, quantize=True)
         # elif y > 0.2:
         #     params.set_pitch(self.pitch.get(+1, limit=length * 4))
             # self.latch.reps = 2
@@ -207,12 +223,13 @@ class GateRepeatMode(JoystickMode):
         if abs(y) <= 0.1:
             self.pitch.cancel()
 
-        gate_knob = control.gate_fader.value()
-        self.gate.ratio = 1 if x > 0.3 else 1.3 + x if x < -0.3 else gate_knob
+        gate_ratio = 1 if not any_pressed_or_held(control.GATE_KEYS) else control.gate_fader.value() * 0.75
+        self.gate.ratio = 1 if x > 0.3 else 1.3 + x if x < -0.3 else gate_ratio
         self.gate.period = 2 if y < -0.5 else 4 if y > 0.5 else 8 # control.gate_length_fader.value()
-        # if any_pressed_or_held(control.SNARE_KEYS):
-        #     self.gate.period = length * max(1, len(button_latch.samples)) * (control.gate_length_fader.value() // 8 + 1)
-        # self.gate.period //= 2
+        if len(self.gate.lengths) > 0:
+            self.gate.period = self.gate.lengths[-1]
+        if any_pressed_or_held(control.LATCH_KEYS):
+            self.gate.period = button_latch.length       # self.gate.period //= 2
         # TODO !play_step could be expressed as params.step = None
         # if params.step:
         #     params.play_step = self.gate.is_on(params.step)

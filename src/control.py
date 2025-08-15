@@ -45,8 +45,9 @@ KEY_COLS = [Pin("D9"), Pin("D10"), Pin("D11"), Pin("D12"), Pin("D0")]
 SAMPLE_KEYS = [0, 1, # 2,
                3, 4, 5, 6, 7]
 LATCH_KEYS = [8, 9, 10, 11]
-SNARE_KEY = 12
-# fun keys, delay pitch who knows! cute stuff
+GATE_KEYS = [12, 13, 14, 15]
+# SNARE_KEY = 12
+# fun keys, delay pitch who knows! cute stuff 13 - 15
 SLOW_KEY = 16
 FLIP_KEY = 17
 HOLD_KEY = 18

@@ -17,8 +17,9 @@ def bank_offset():
     return control.current_bank * control.BANK_SIZE
 
 class ButtonDown:
-    def __init__(self, i = -1):
+    def __init__(self, i = -1, change_sample=False):
         self.i = i
+        self.change_sample = change_sample
 
     def __call__(self, key):
         self.down(key)
@@ -43,7 +44,7 @@ class ButtonDown:
             ephemeral_start = True
             internal_clock.start(ticks_us())
         # fx.button_latch.activate(i * 2, quantize=not ephemeral_start)
-        if self.i is not -1:
+        if self.change_sample and self.i is not -1:
             set_current_sample(bank_offset() + self.i)
         sample.voice_on = True
 
@@ -77,14 +78,25 @@ class ButtonUp:
 def active_latch_lengths():
     return [LATCH_LENGTHS[i] for i, _ in enumerate(any_pressed_or_held(control.LATCH_KEYS))]
 
+GATE_LENGTHS = [2, 4, 8, 16]
+class GateDown(ButtonDown):
+    def action(self):
+        logger.info(f"gate callback")
+        fx.joystick_mode.gate.lengths.append(GATE_LENGTHS[self.i])
+
 LATCH_LENGTHS = [1, 2, 4, 8]
 class LatchDown(ButtonDown):
     def action(self):
         logger.info(f"latch callback")
-        fx.button_latch.activate(get_current_step(), quantize=not ephemeral_start, length=LATCH_LENGTHS[self.i])
+        fx.button_latch.activate(get_current_step(), quantize=True, length=LATCH_LENGTHS[self.i])
+
+class GateUp(ButtonUp):
+    def action(self):
+        fx.joystick_mode.gate.lengths.remove(GATE_LENGTHS[self.i])
 
 class LatchUp(ButtonUp):
     def action(self):
+        fx.button_latch.unlatch(LATCH_LENGTHS[self.i])
         if any_pressed_or_held(control.LATCH_KEYS):
             return
         fx.button_latch.cancel()
@@ -133,15 +145,15 @@ def active_sample_key() -> None | int:
     for i, key in enumerate(control.SAMPLE_KEYS):
         if control.keypad.pressed(key):
             return i
-    for i, key in enumerate(control.LATCH_KEYS):
-        if control.keypad.pressed(key):
-            return i
+    # for i, key in enumerate(control.LATCH_KEYS):
+    #     if control.keypad.pressed(key):
+    #         return i
     for i, key in enumerate(control.SAMPLE_KEYS):
         if held[key]:
             return i
-    for i, key in enumerate(control.LATCH_KEYS):
-        if held[key]:
-            return i
+    # for i, key in enumerate(control.LATCH_KEYS):
+    #     if held[key]:
+    #         return i
     return None
 
 def any_pressed_or_held(keys):
@@ -185,9 +197,11 @@ async def startup_animation():
 
 def init():
     for i, key in enumerate(control.SAMPLE_KEYS):
-        control.keypad.on(key, ButtonDown(i), ButtonUp())
+        control.keypad.on(key, ButtonDown(i, change_sample=True), ButtonUp())
     for i, key in enumerate(control.LATCH_KEYS):
         control.keypad.on(key, LatchDown(i), LatchUp(i))
+    for i, key in enumerate(control.GATE_KEYS):
+        control.keypad.on(key, GateDown(i), GateUp(i))
 
     control.keypad.on(control.PLAY_KEY, toggle_clock)
     control.keypad.on(control.HOLD_KEY, hold_down, hold_up)
