@@ -11,7 +11,7 @@ class InternalClock:
     def __init__(self):
         self.song_position = 0
         self.play_mode = False
-        self.bpm = 136
+        self.bpm = 160
         self.start_ticks = None
         self.bpm_changed = lambda _: ()
         self.clock_count = -1
@@ -141,7 +141,7 @@ class MidiClock:
         self.play_mode = False
         self.last_clock_ticks = 0
         self.last_step_ticks = 0
-        self.bpm = 143
+        self.bpm = 160
         self.prev_bpm = self.bpm
         self.clock_buffer = deque([0], 24)
         self.prev_ticks = None

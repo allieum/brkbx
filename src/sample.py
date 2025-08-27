@@ -95,7 +95,7 @@ voice_on = False
 current_sample = 0
 def init():
     global samples
-    samples = load_samples("/sd/samples/y2k")
+    samples = load_samples("/sd/samples/160")
     # samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")
     logger.info(f"loaded {len(samples)} samples")
 
