@@ -21,14 +21,14 @@ class ButtonDown:
         self.i = i
         self.change_sample = change_sample
 
-    def __call__(self, key):
-        self.down(key)
+    def __call__(self, key, ticks):
+        self.down(key, ticks)
         self.action()
 
     def action(self):
         pass
 
-    def down(self, key):
+    def down(self, key, ticks):
         global ephemeral_start, hold_only_press
         if held[key]:
             held[key] = False
@@ -42,7 +42,7 @@ class ButtonDown:
 
         if not clock_running():
             ephemeral_start = True
-            internal_clock.start(ticks_us())
+            internal_clock.start(ticks)
         # fx.button_latch.activate(i * 2, quantize=not ephemeral_start)
         if self.change_sample and self.i is not -1:
             set_current_sample(bank_offset() + self.i)
@@ -52,7 +52,7 @@ class ButtonUp:
     def __init__(self, i = 0):
         self.i = i
 
-    def __call__(self, key):
+    def __call__(self, key, ticks):
         if held[key]:
             borrowed_cbs.append((key, control.keypad.up_cb[key]))
             return
@@ -138,7 +138,7 @@ def hold_up(*_):
     for key in [k for k in control.HOLDABLE_KEYS if held[k]]:
         held[key] = False
     for key, cb in borrowed_cbs:
-        cb(key)
+        cb(key, ticks_us())
     borrowed_cbs = []
 
 def active_sample_key() -> None | int:

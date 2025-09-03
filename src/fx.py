@@ -69,16 +69,23 @@ class Latch:
         return quantized_length
 
     def activate(self, step: int, quantize=True, length = 2):
+        initial_activation = len(self.lengths) == 0
         self.length = length
         self.lengths.append(length)
-        delta = step % max(2, length) if quantize else 0
-        self.step = step - delta
-        logger.info(f"latching on step {step} -> quantized to {self.step}")
-        # self.step = step - step % length
+        if initial_activation:
+            delta = step % max(2, length) if quantize else 0
+            self.step = step - delta
+            logger.info(f"initial latching on step {step} -> quantized to {self.step}")
+        elif self.step:
+            delta = self.step % max(2, length) if quantize else 0
+            self.step = self.step - delta
+            logger.info(f"latching on step {step} -> quantized to {self.step}")
+
         self.count = 0
         self.start_step = None
         if quantize:
             self.start_step = self.step
+
 
     def get(self, step: int | None, length = None, start_step = None, quantize=True) -> int:
         if length is None:

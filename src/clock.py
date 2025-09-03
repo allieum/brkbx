@@ -275,7 +275,7 @@ def clock_running():
     return get_running_clock() is not None
 
 def get_current_step():
-    return 0 if (clock := get_running_clock()) is None else clock.song_position
+    return 0 if (clock := get_running_clock()) is None else max(0, clock.song_position)
 
 def toggle_clock(*_):
     clock = get_running_clock()

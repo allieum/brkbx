@@ -2,7 +2,7 @@ import asyncio
 import os
 from machine import Pin
 from machine import SDCard
-from time import ticks_us, ticks_diff
+from time import ticks_us, ticks_diff, ticks_add
 
 import audio
 from audio import play_step, prepare_step, audio_out
@@ -39,7 +39,7 @@ async def run_internal_clock():
     # internal_clock.test_predict()
     while True:
         # todo only do this frequently if clock is running
-        await asyncio.sleep_ms(1 if internal_clock.play_mode else 30)
+        await asyncio.sleep_ms(1 if internal_clock.play_mode else 5)
         # await asyncio.sleep_ms(1)
         step = internal_clock.process_clock(ticks_us())
         if step is None:
@@ -61,16 +61,23 @@ async def main():
     asyncio.create_task(display.update_display())
     sample.current_sample = sample_knob.value() % len(get_samples())
     until_step = None
+    KEY_SCAN_INTERVAL = 0.005
+    KEY_EVENT_AVG_TICKS_ERR = round(KEY_SCAN_INTERVAL / 2 * 1000000)
 
     logger.info(f"preparing first step")
     await prepare_step(0)
     logger.info(f"prepared first step")
     try:
         while True:
+            await asyncio.sleep(KEY_SCAN_INTERVAL)
+            ticks = ticks_us()
             clock = get_running_clock()
             ui.update_leds()
             # control.print_controls()
-            control.keypad.read_keypad()
+            estimated_keyevent_ticks = ticks_diff(ticks, KEY_EVENT_AVG_TICKS_ERR)
+            # logger.info(f"starting keypad scan, est keyevent ticks {estimated_keyevent_ticks} vs ticks {ticks}")
+            control.keypad.read_keypad(estimated_keyevent_ticks)
+            # logger.info(f"finished keypad scan")
             for p in param.params:
                 p.get()
             # print(f"{control.joystick2.position(), control.joystick2.pressed()}")
@@ -81,7 +88,6 @@ async def main():
                 audio.started_preparing_next_step = True
                 await prepare_step(clock.song_position + 1, step_time)
 
-            await asyncio.sleep(0.005 if clock else 0.1)
             # if (new_val := rotary_settings.update()) is not None:
             #     if rotary_settings.setting == RotarySetting.BPM:
             #         internal_clock.bpm = new_val
