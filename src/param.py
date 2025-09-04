@@ -1,6 +1,7 @@
 import control
 from display import post_param_update
 from sequence import STEPS_PER_BAR
+from clock import internal_clock
 # from fractions import Fraction
 
 class Param:
@@ -35,6 +36,7 @@ def ms_printer(seconds):
     return f"{round(seconds * 1000, 1)}ms"
 
 params = [
+    bpm := Param("bpm", lambda: internal_clock.bpm),
     gate := Param("gate", control.gate_fader.value),
     gate_length := Param("gate length", control.gate_length_fader.value, step_printer),
     latch_length := Param("latch length", control.latch_length_fader.value, step_printer),

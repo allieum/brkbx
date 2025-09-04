@@ -1,11 +1,12 @@
 from machine import I2C, Pin
 from ssd1306 import SSD1306_I2C
 from utility import get_logger
+from clock import get_running_clock
 import asyncio
 
 logger = get_logger(__name__)
 
-DISABLE_DISPLAY = True
+DISABLE_DISPLAY = False
 
 W = 128
 H = 64
@@ -24,8 +25,8 @@ def init():
         # center_text("hello worldzo ok")
         oled.show()
         logger.info("initialized oled display")
-    except:
-        logger.error(f"failed to set up display")
+    except Exception as e:
+        logger.error(f"failed to set up display:\n{e}")
 
 def center_text(msg):
     if not oled:
@@ -59,7 +60,8 @@ async def update_display():
     if not oled:
         return
     while True:
-        if pending_update:
+        # workaround: only update display when clock isn't running, avoid 28ms wrench
+        if pending_update and get_running_clock() is None:
             logger.info(f"updating display with param update")
             name, value = pending_update
             oled.fill(0)

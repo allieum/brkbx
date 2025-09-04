@@ -2,6 +2,7 @@
 
 from micropython import const
 import framebuf
+import time
 
 
 # register definitions
@@ -85,20 +86,36 @@ class SSD1306(framebuf.FrameBuffer):
     def invert(self, invert):
         self.write_cmd(SET_NORM_INV | (invert & 1))
 
+    def write_cmd(self, cmd):
+        pass
+
+    def write_data(self, buf):
+        pass
+
     def show(self):
+        ticks = time.ticks_us()
         x0 = 0
         x1 = self.width - 1
         if self.width == 64:
             # displays with width of 64 pixels are shifted by 32
             x0 += 32
             x1 += 32
+        print(f"ssd1306::show(): elapsed time {time.ticks_diff(time.ticks_us(), ticks) / 1000}ms")
         self.write_cmd(SET_COL_ADDR)
+        print(f"ssd1306::show(): elapsed time {time.ticks_diff(time.ticks_us(), ticks) / 1000}ms")
         self.write_cmd(x0)
+        print(f"ssd1306::show(): elapsed time {time.ticks_diff(time.ticks_us(), ticks) / 1000}ms")
         self.write_cmd(x1)
+        print(f"ssd1306::show(): elapsed time {time.ticks_diff(time.ticks_us(), ticks) / 1000}ms")
         self.write_cmd(SET_PAGE_ADDR)
+        print(f"ssd1306::show(): elapsed time {time.ticks_diff(time.ticks_us(), ticks) / 1000}ms")
         self.write_cmd(0)
+        print(f"ssd1306::show(): elapsed time {time.ticks_diff(time.ticks_us(), ticks) / 1000}ms")
         self.write_cmd(self.pages - 1)
+        print(f"ssd1306::show(): elapsed time {time.ticks_diff(time.ticks_us(), ticks) / 1000}ms")
         self.write_data(self.buffer)
+        print(f"ssd1306::show(): elapsed time {time.ticks_diff(time.ticks_us(), ticks) / 1000}ms")
+
 
 
 class SSD1306_I2C(SSD1306):
