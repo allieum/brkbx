@@ -194,7 +194,7 @@ sample_knob = RotaryKnob(RotaryIRQ("D32", "D31",
                                    max_val=BANK_SIZE * (NBANKS - 1),
                                    range_mode=Rotary.RANGE_BOUNDED,
                                    incr=BANK_SIZE), rotary_button_1)
-rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True), rotary_button_2)
+rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True, reverse=True), rotary_button_2)
 
 current_bank = 0
 def switch_bank():
