@@ -1,5 +1,14 @@
 #+title: Notes
 
+* fresh
+** auto pitch mod controlled by slider??
+** acrylic top panel
+** modulate ts fx, filter
+** filter: fix pops, add resonance
+** haltime wants to start on beat
+** rm unused components
+** put vocals on there
+
 * forsure todo
 ** bring back classic joystick behaving
 ** interpellation at step boundary (need to pass in next step start sample??)

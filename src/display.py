@@ -6,7 +6,7 @@ import asyncio
 
 logger = get_logger(__name__)
 
-DISABLE_DISPLAY = False
+DISABLE_DISPLAY = True
 
 W = 128
 H = 64

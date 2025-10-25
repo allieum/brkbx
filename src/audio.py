@@ -127,7 +127,7 @@ async def prepare_step(step, step_time = None) -> None:
         logger.debug(f"finished writing {step} res={bytes_written}, took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
 
 async def write_audio(step, start, end):
-    if planned_step_time and (lag := ticks_diff(ticks_us(), planned_step_time) / 1000000) > 0.003:
+    if planned_step_time and (lag := ticks_diff(ticks_us(), planned_step_time) / 1000000) > 0.005:
         logger.warning(f"step {step} (planned for {planned_step_time}) lag is too high ({lag}), skipping step")
         return
     swriter.out_buf = audio_out_mv[start: end]

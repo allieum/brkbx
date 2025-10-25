@@ -92,7 +92,7 @@ class Latch:
             length = self.length
         if step is None:
             return self.step if self.step else 0
-        if self.step is None or self.reps and self.count >= self.reps * length:
+        if self.step is None or (self.reps and self.count >= self.reps * length):
             self.activate(step, quantize, length)
         if start_step:
             self.start_step = start_step
@@ -106,6 +106,8 @@ class Latch:
             self.current_sample = (self.current_sample + 1) % len(self.samples)
 
         logger.info(f"self.step {self.step} step={step} start step = {self.start_step} length {length}")
+        if self.step is None:
+            self.step = step
         return self.step + (step - self.start_step) % length
 
     def is_active(self):
