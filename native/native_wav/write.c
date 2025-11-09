@@ -104,6 +104,7 @@ static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
     mp_float_t pitch_rate = mp_obj_get_float(args[6]);
     mp_float_t volume = mp_obj_get_float(args[7]);
     mp_float_t filter_depth = mp_obj_get_float(args[8]); // New parameter
+    mp_float_t mix_depth = mp_obj_get_float(args[9]); // New parameter
 
     int interpellation_window = 10;
 
@@ -129,7 +130,7 @@ static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
             }
 
             // Apply filter and volume
-            sample = process_sample(&filter, sample, filter_depth) * volume;
+            sample = process_sample(&filter, sample, filter_depth) * volume + mix_depth * out_buf[samples_written];
             out_buf[samples_written++] = (int16_t)sample;
             /* mp_printf(&mp_plat_print, "native_wav: block_i = %d, j = %d\n", block_i, j); */
             if (samples_written == target_samples) {

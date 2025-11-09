@@ -5,6 +5,7 @@ from machine import Pin, ADC, Signal
 from rotary_irq_rp2 import RotaryIRQ, Rotary
 from collections import deque
 import utility
+import sample
 
 logger = utility.get_logger(__name__)
 
@@ -54,7 +55,8 @@ HOLD_KEY = 18
 PLAY_KEY = 19
 SOUND_KEYS = range(16)
 HOLDABLE_KEYS = range(18)
-BANK_SIZE = len(SAMPLE_KEYS)
+# BANK_SIZE = len(SAMPLE_KEYS)
+BANK_SIZE = 4
 keypad = Keypad(KEY_ROWS, KEY_COLS)
 
 class Pot:
@@ -188,17 +190,11 @@ class RotaryKnob:
     def value(self):
         return self.enc.value()
 
-NBANKS = 2 # hack
-sample_knob = RotaryKnob(RotaryIRQ("D32", "D31",
-                                   min_val=0,
-                                   max_val=BANK_SIZE * (NBANKS - 1),
-                                   range_mode=Rotary.RANGE_BOUNDED,
-                                   incr=BANK_SIZE), rotary_button_1)
-rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True, reverse=True), rotary_button_2)
 
 current_bank = 0
 def switch_bank():
     global current_bank
+    logger.info(f"sample offset set to {current_bank}")
     current_bank = (current_bank + 1) % NBANKS
     # logger.info(f"sample offset set to {current_bank}")
 rotary_button_2.down_cb = switch_bank
@@ -214,3 +210,19 @@ def print_controls():
         return
     logger.info(f"faders: {values}")
     prev_controls = values
+
+sample_knob = RotaryKnob(RotaryIRQ("D32", "D31",
+                                       min_val=0,
+                                       max_val=BANK_SIZE * (5 - 1),
+                                       range_mode=Rotary.RANGE_BOUNDED,
+                                       incr=BANK_SIZE), rotary_button_1)
+def init():
+    global NBANKS, sample_knob, rotary2
+    NBANKS = len(sample.samples) // 7 + 1
+    logger.info(f"NBANKS is {NBANKS}")
+    sample_knob = RotaryKnob(RotaryIRQ("D32", "D31",
+                                       min_val=0,
+                                       max_val=BANK_SIZE * (NBANKS - 1),
+                                       range_mode=Rotary.RANGE_BOUNDED,
+                                       incr=BANK_SIZE), rotary_button_1)
+    rotary2 = RotaryKnob(RotaryIRQ(ROT_CLK, ROT_DT, pull_up=True, reverse=True), rotary_button_2)

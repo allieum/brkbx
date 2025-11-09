@@ -1,6 +1,7 @@
 import control
 import sample
-from sample import set_current_sample
+from sample import get_current_sample, set_current_sample
+import sample
 from clock import internal_clock, clock_running, get_current_step, toggle_clock
 import fx
 import utility
@@ -11,15 +12,19 @@ from time import ticks_us
 logger = utility.get_logger(__name__)
 
 ephemeral_start = False
-sample.voice_on = True
 
 def bank_offset():
     return control.current_bank * control.BANK_SIZE
 
 class ButtonDown:
+    # note: v fragile, requires that we always create buttondown/buttonup in lockstep
+    id_max = 0
+
     def __init__(self, i = -1, change_sample=False):
         self.i = i
         self.change_sample = change_sample
+        self.id = ButtonDown.id_max
+        ButtonDown.id_max += 1
 
     def __call__(self, key, ticks):
         self.down(key, ticks)
@@ -45,12 +50,22 @@ class ButtonDown:
             internal_clock.start(ticks)
         # fx.button_latch.activate(i * 2, quantize=not ephemeral_start)
         if self.change_sample and self.i is not -1:
-            set_current_sample(bank_offset() + self.i)
-        sample.voice_on = True
+            # logger.info(f"404 offset is to {sample.offset404}")
+            # if self.i < 3:
+            set_current_sample((bank_offset() + self.i) % sample.offset404)
+            # else:
+            #     logger.info(f"setting sample to {sample.offset404 + bank_offset() + self.i}")
+            #     set_current_sample(sample.offset404 + bank_offset() + self.i)
+
+        sample.active_voices.add(get_current_sample(), self.id)
 
 class ButtonUp:
-    def __init__(self, i = 0):
+    id_max = 0
+
+    def __init__(self, i = -1):
         self.i = i
+        self.id = ButtonUp.id_max
+        ButtonUp.id_max += 1
 
     def __call__(self, key, ticks):
         if held[key]:
@@ -64,15 +79,15 @@ class ButtonUp:
 
     def up(self, key):
         global ephemeral_start
-        if (i := active_sample_key()) is not None:
-            logger.info(f"active sample key {i}")
-            set_current_sample(bank_offset() + i)
-        if not key in control.SOUND_KEYS or any_pressed_or_held(control.SOUND_KEYS):
+        # if (i := active_sample_key()) is not None:
+        #     logger.info(f"active sample key {i}")
+        #     set_current_sample(bank_offset() + i)
+        if not key in control.SOUND_KEYS: # or
             return
-        if internal_clock.play_mode and ephemeral_start:
+        sample.active_voices.remove(self.id)
+        if not any_pressed_or_held(control.SOUND_KEYS) and internal_clock.play_mode and ephemeral_start:
             internal_clock.stop()
             ephemeral_start = False
-        sample.voice_on = False
 
 # SnareDown, SnareUp
 def active_latch_lengths():
@@ -103,7 +118,7 @@ class LatchUp(ButtonUp):
 
 class SlowDown(ButtonDown):
     def action(self):
-        fx.button_stretch.get_slice(get_current_step(), 0.5)
+        fx.button_stretch.get_slice(get_current_step(), 0.5, get_current_sample().chunks)
 
 class SlowUp(ButtonUp):
     def action(self):
@@ -197,7 +212,7 @@ async def startup_animation():
 
 def init():
     for i, key in enumerate(control.SAMPLE_KEYS):
-        control.keypad.on(key, ButtonDown(i, change_sample=True), ButtonUp())
+        control.keypad.on(key, ButtonDown(i, change_sample=True), ButtonUp(i))
     for i, key in enumerate(control.LATCH_KEYS):
         control.keypad.on(key, LatchDown(i), LatchUp(i))
     for i, key in enumerate(control.GATE_KEYS):

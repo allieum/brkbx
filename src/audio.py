@@ -10,7 +10,7 @@ import native_wav
 import fx
 import sample
 from clock import get_running_clock, internal_clock
-from sample import get_current_sample
+from sample import get_current_sample, active_voices
 
 logger = utility.get_logger(__name__)
 
@@ -53,7 +53,7 @@ PLAY_WINDOW = 2
 async def play_step(step, bpm):
     global started_preparing_next_step, last_input_step, stretch_write
     started_preparing_next_step = False
-    do_play_step = sample.voice_on or fx.joystick_mode.has_input()
+    do_play_step = sample.active_voices.any() or fx.joystick_mode.has_input()
     if (len(fx.button_latch.lengths) == 0 and not fx.joystick_mode.gate.is_on(step)) or not do_play_step:
         stretch_write = 0
         return
@@ -72,48 +72,56 @@ async def play_step(step, bpm):
         # logger.info(f"wrote step {step} to i2s")
 
 
+# does this need to be async?
 planned_step_time = None
 async def prepare_step(step, step_time = None) -> None:
+    # fx.flip.flip_sample(step)
+    logger.debug(f"preparing step {step}")
+    for i, sample in enumerate(active_voices.get()):
+        write_channel(step, step_time, sample, i == 0)
+        logger.debug(f"wrote step {step} for {sample.name}")
+        # await to unblock? time entire fn.
+
+def write_channel(step, step_time, sample, no_mix):
     global target_samples, bytes_written, step_start_bytes, planned_step_time
+    # logger.info(f"step {step} planned for {step_time}")
+    planned_step_time = step_time
+    ticks = ticks_us()
     clock = get_running_clock()
     if clock is None:
         bpm = internal_clock.bpm
     else:
         bpm = clock.bpm
-    # logger.info(f"step {step} planned for {step_time}")
-    planned_step_time = step_time
-    ticks = ticks_us()
-    fx.flip.flip_sample(step)
-    current_sample = get_current_sample()
-    stretch_rate = bpm / current_sample.bpm
+    stretch_rate = bpm / sample.bpm
     pitch_rate = 1
-    params = StepParams(step, pitch_rate, stretch_rate, current_sample.i)
+    params = StepParams(step, pitch_rate, stretch_rate, sample)
     fx.joystick_mode.update(params)
     # logger.info(f"prepare step {params.step}")
     log_joystick()
     if params.step is None:
         logger.info(f"skipping step {step} ({params.step})")
         return
-    chunk_samples = current_sample.get_chunk(params.step)
+    chunk_samples = sample.get_chunk(params.step)
     # stretch_block_length = 0.015 # in seconds
     stretch_block_length = control.timestretch_grain_knob.value()
     stretch_block_input_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
-    pitched_samples = round(current_sample.samples_per_chunk / params.pitch_rate)
+    pitched_samples = round(sample.samples_per_chunk / params.pitch_rate)
     if params.pitch_rate != 1:
         logger.info(f"pitch rate {params.pitch_rate}")
     if stretch_block_input_samples > pitched_samples:
-        logger.warning(f"stretch block bigger than sample chunk {stretch_block_input_samples} vs {current_sample.samples_per_chunk}, using smaller")
-        logger.info(f"stretch block: {stretch_block_length}")
+        logger.debug(f"stretch block bigger than sample chunk {stretch_block_input_samples} vs {sample.samples_per_chunk}, using smaller")
+        logger.debug(f"stretch block: {stretch_block_length}")
         stretch_block_input_samples = pitched_samples
     stretch_block_output_samples = round(1 / params.stretch_rate * stretch_block_input_samples)
     # logger.info(f"play rate for step {step} is {rate}")
     effective_rate = params.stretch_rate * params.pitch_rate
-    target_samples = round(current_sample.samples_per_chunk / effective_rate)
+    target_samples = round(sample.samples_per_chunk / effective_rate)
     write_begin = ticks_us()
     logger.debug(f"preamble for {step} took {ticks_diff(write_begin, ticks) / 1000000}s")
 
     if params.play_step:
         volume = 0 if control.volume_knob.value() < 0.02 else control.volume_knob.value()
+        mix_depth = 0 if no_mix else 1.0
         bytes_written = native_wav.write(audio_out_buffer,
                                          chunk_samples,
                                          stretch_block_input_samples,
@@ -122,12 +130,13 @@ async def prepare_step(step, step_time = None) -> None:
                                          pitched_samples,
                                          params.pitch_rate,
                                          volume,
-                                         control.filter_knob.value())
+                                         control.filter_knob.value(),
+                                         mix_depth)
         # logger.info(f"volume : {volume}")
         logger.debug(f"finished writing {step} res={bytes_written}, took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
 
 async def write_audio(step, start, end):
-    if planned_step_time and (lag := ticks_diff(ticks_us(), planned_step_time) / 1000000) > 0.005:
+    if planned_step_time and (lag := ticks_diff(ticks_us(), planned_step_time) / 1000000) > 0.01:
         logger.warning(f"step {step} (planned for {planned_step_time}) lag is too high ({lag}), skipping step")
         return
     swriter.out_buf = audio_out_mv[start: end]

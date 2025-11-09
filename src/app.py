@@ -33,6 +33,7 @@ os.mount(sd, "/sd")
 sample.init()
 ui.init()
 display.init()
+control.init()
 
 # TODO rearchitect so that this task only runs when clock is running
 async def run_internal_clock():

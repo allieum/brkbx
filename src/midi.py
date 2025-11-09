@@ -20,7 +20,7 @@ USE_INTERNAL_CLOCK = False
 # MIDI config
 midi_rx = Pin("D28", Pin.IN)
 # TX_PIN = Pin("D29", Pin.IN)
-LOOKAHEAD_SEC = 0.015
+LOOKAHEAD_SEC = 0.025
 uart = UART(7)
 uart.init(31250, timeout=1, timeout_char=1)
 sreader = asyncio.StreamReader(uart)

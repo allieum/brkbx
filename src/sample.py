@@ -49,18 +49,19 @@ class Sample:
 
     def __init__(self, wav_filename: str, i):
         logger.info(wav_filename)
-        self.wav_file = open(wav_filename, "rb")
-        self.wav_offset, self.wav_size = find_wav_data(self.wav_file)
+        with open(wav_filename, "rb") as wav_file:
+            self.wav_offset, self.wav_size = find_wav_data(wav_file)
         self.name = wav_filename
         self.i = i
 
         nsamples = self.wav_size / CHANNELS / BYTES_PER_SAMPLE
         length = nsamples / SAMPLE_RATE
 
-        total_beats = 4
+        total_beats = 2
         while True:
             self.bpm = round(total_beats / length * 60, 2)
-            if self.bpm in range(Sample.BPM_MIN, Sample.BPM_MAX + 1):
+            logger.info(f"self.bpm is {self.bpm}")
+            if self.bpm >= Sample.BPM_MIN and self.bpm <= Sample.BPM_MAX:
                 logger.info(f"calculated bpm assuming {total_beats} is {self.bpm} for {wav_filename}")
                 break
             total_beats *= 2
@@ -78,26 +79,57 @@ class Sample:
 
 
     def get_chunk(self, i: int) -> memoryview:
-        """ read the ith chunk of wav file into memory and return it """
-        self.wav_file.seek(self.wav_offset + i % self.chunks * self.chunk_size)
-        # logger.info(f"reading offset {offset}")
-        self.wav_file.readinto(self.wav_samples_mv)
-        # logger.info(f"samples array {self.wav_samples[:64]}")
+        with open(self.name, "rb") as wav_file:
+            """ read the ith chunk of wav file into memory and return it """
+            wav_file.seek(self.wav_offset + i % self.chunks * self.chunk_size)
+            # logger.info(f"reading offset {offset}")
+            wav_file.readinto(self.wav_samples_mv)
+            # logger.info(f"samples array {self.wav_samples[:64]}")
         return self.wav_samples_mv
-
 
 def load_samples(folder: str) -> List[Sample]:
     files = sorted(os.listdir(folder))
     return [Sample(f"{folder}/{wav}", i) for i, wav in enumerate(files) if ".wav" in wav]
 
+class ActiveVoices:
+    FREE = (None, None)
+    voices = [FREE] * 6
+
+    def add(self, sample, key):
+        # i = 0
+        for i, s in enumerate(self.voices):
+            if s == self.FREE:
+                break
+        self.voices[i] = (sample, key)
+        logger.info(f"added {sample.name, key} as voice {i}")
+
+    def remove(self, key):
+        for i, pair in enumerate(self.voices):
+            sample, k = pair
+            if key == k:
+                self.voices[i] = self.FREE
+                logger.info(f"removed {sample.name, key} from voice {i}")
+
+    def get(self):
+        on_voices = set([sample for sample, _ in self.voices if sample is not None])
+        # logger.info(f"active voices: {on_voices}")
+        return on_voices
+
+    def any(self):
+        return len(self.get()) > 0
+
 samples = []
-voice_on = False
+offset404 = 0
+active_voices = ActiveVoices()
 current_sample = 0
 def init():
-    global samples
-    samples = load_samples("/sd/samples/160")
+    global samples, samples404, offset404
+    samples404 = load_samples("/sd/samples/404")
+    samples = load_samples("/sd/samples/160") + samples404
+    offset404 = len(samples) - len(samples404)
+
     # samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")
-    logger.info(f"loaded {len(samples)} samples")
+    logger.info(f"loaded {len(samples)} samples, offset404 {offset404}")
 
 def get_samples():
     return samples

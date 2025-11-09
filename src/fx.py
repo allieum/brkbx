@@ -130,13 +130,12 @@ class Stretch:
     def __init__(self) -> None:
         self.stretch_start = None
 
-    def get_slice(self, step: int, rate: float):
+    def get_slice(self, step: int, rate: float, nslices):
         if self.stretch_start is None:
             self.stretch_start = step
             self.stretch_start -= self.stretch_start % 8
-        chunks = get_current_sample().chunks
-        steps = (step - self.stretch_start) % (chunks / rate)
-        stretched_slice = (self.stretch_start + rate * steps) % chunks
+        steps = (step - self.stretch_start) % (nslices / rate)
+        stretched_slice = (self.stretch_start + rate * steps) % nslices
         if stretched_slice == round(stretched_slice):
             logger.info(f"stretched slice {stretched_slice}")
             return int(stretched_slice)
@@ -190,6 +189,7 @@ class GateRepeatMode(JoystickMode):
         self.pitch = Pitch()
         self.stretch = Stretch()
 
+        # could pass in cached stepparams for non-current samples ?? something something
     def update(self, params: StepParams):
         x, y = joystick.position(params.step)
         if joystick.pressed():
@@ -245,11 +245,11 @@ class GateRepeatMode(JoystickMode):
         if x < -0.1:
             rate = 0.5
             params.stretch_rate *= rate
-            params.step = self.stretch.get_slice(params.step, rate)
+            params.step = self.stretch.get_slice(params.step, rate, params.sample.chunks)
         else:
             self.stretch.cancel()
         if button_stretch.is_active():
-            params.step = button_stretch.get_slice(params.step or 0, 0.5)
+            params.step = button_stretch.get_slice(params.step or 0, 0.5, params.sample.chunks)
 
 
 class PitchStretchMode(JoystickMode):
@@ -262,7 +262,7 @@ class PitchStretchMode(JoystickMode):
         if x < -0.5:
             rate = 0.5
             params.stretch_rate *= rate
-            params.step = self.stretch.get_slice(params.step, rate)
+            params.step = self.stretch.get_slice(params.step, rate, params.sample.chunks)
         else:
             self.stretch.cancel()
 

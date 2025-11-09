@@ -1,3 +1,6 @@
+from sample import Sample
+
+
 STEPS_PER_BAR = 32
 
 class StepParams:
@@ -6,7 +9,7 @@ class StepParams:
         self.pitch_rate = pitch_rate
         self.stretch_rate = stretch_rate
         self.play_step = True
-        self.sample: int = sample
+        self.sample: Sample = sample
 
     def modulate(self, joystick_mode):
         """
