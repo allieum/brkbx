@@ -10,7 +10,7 @@ import native_wav
 import fx
 import sample
 from clock import get_running_clock, internal_clock
-from sample import get_current_sample, active_voices
+from sample import BYTES_PER_SAMPLE, get_current_sample, active_voices
 
 logger = utility.get_logger(__name__)
 
@@ -135,8 +135,19 @@ def write_channel(step, step_time, sample, no_mix):
         # logger.info(f"volume : {volume}")
         logger.debug(f"finished writing {step} res={bytes_written}, took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
 
+def seconds_to_bytes(seconds):
+    samples = round(seconds * SAMPLE_RATE_IN_HZ)
+    return samples * BYTES_PER_SAMPLE
+
 async def write_audio(step, start, end):
     if planned_step_time and (lag := ticks_diff(ticks_us(), planned_step_time) / 1000000) > 0.01:
+        # skip_bytes = seconds_to_bytes(lag)
+        # pad_bytes = 256 * 2
+        # start += skip_bytes + pad_bytes
+        # if lag >= 0.015:
+        #     logger.warning(f"step {step} (planned for {planned_step_time}) is too late, skipping step")
+        #     return
+        # logger.warning(f"step {step} (planned for {planned_step_time}) lag is too high ({lag}), skipping {skip_bytes} bytes")
         logger.warning(f"step {step} (planned for {planned_step_time}) lag is too high ({lag}), skipping step")
         return
     swriter.out_buf = audio_out_mv[start: end]

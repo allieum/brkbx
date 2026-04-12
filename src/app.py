@@ -85,6 +85,9 @@ async def main():
             if clock and not audio.started_preparing_next_step and (until_step :=
                                                                     ticks_diff(step_time := clock.predict_next_step_ticks(),
                                                                                ticks_us()) / 1000000) <= LOOKAHEAD_SEC:
+                # if until_step < 0.01:
+                #     logger.warning(f"too late for step {clock.song_position}, skipping prepare")
+                # else:
                 # logger.info(f"starting to prepare step {clock.song_position + 1} {until_step}s from now")
                 audio.started_preparing_next_step = True
                 await prepare_step(clock.song_position + 1, step_time)

@@ -14,12 +14,16 @@ deploy-native: build-native
 	mpr put native/native_wav/native_wav.mpy lib
 
 deploy-micropython-firmware:
-	teensy_loader_cli --mcu=imxrt1062 -v -w TEENSY41-20241129-v1.24.1.hex
+	teensy_loader_cli --mcu=TEENSY41 -v -w TEENSY41-20241129-v1.24.1.hex
 
 deploy-custom-micropython-firmware:
 	teensy_loader_cli --mcu=imxrt1062 -v -w firmware.hex
 
+#setup-teensy:
+#	mpr touch /flash/SKIPSD && mpr mkdir lib && mpr mkdir lib/adafruit_midi && \
+#	mpr put src/lib/typing.mpy lib && mpr put native/native_wav/native_wav.mpy lib && mpr put src/main.py /flash/ && \
+#	mpr mip install usb-device-midi
 setup-teensy:
-	mpr touch /flash/SKIPSD && mpr mkdir lib && mpr mkdir lib/adafruit_midi && \
+	# mpr touch /flash/SKIPSD && mpr mkdir lib && mpr mkdir lib/adafruit_midi && \
 	mpr put src/lib/typing.mpy lib && mpr put native/native_wav/native_wav.mpy lib && mpr put src/main.py /flash/ && \
 	mpr mip install usb-device-midi

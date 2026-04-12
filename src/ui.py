@@ -108,6 +108,8 @@ class LatchDown(ButtonDown):
 class GateUp(ButtonUp):
     def action(self):
         fx.joystick_mode.gate.lengths.remove(GATE_LENGTHS[self.i])
+        if not any_pressed_or_held(control.GATE_KEYS):
+            fx.joystick_mode.gate.lengths = []
 
 class LatchUp(ButtonUp):
     def action(self):

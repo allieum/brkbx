@@ -1,5 +1,7 @@
 #+title: Notes
 
+* flip dont do anything, reassign button to something really important..... rec ? shift? idk.. keep it open even til you know.
+
 * fresh
 ** auto pitch mod controlled by slider??
 ** acrylic top panel
