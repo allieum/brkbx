@@ -7,6 +7,9 @@ mountsd:
 list-samples:
 	mpremote exec "import os, machine" exec "os.mount(machine.SDCard(), '/sd')" ls /sd/samples | sed -nr "s/.* (\w+.wav)/\1/p"
 
+copy-samples:
+	mpr run copy_samples.py
+
 build-native:
 	cd native/native_wav && make
 

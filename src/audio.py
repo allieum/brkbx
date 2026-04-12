@@ -77,10 +77,14 @@ planned_step_time = None
 async def prepare_step(step, step_time = None) -> None:
     # fx.flip.flip_sample(step)
     logger.debug(f"preparing step {step}")
+    t0 = ticks_us()
     for i, sample in enumerate(active_voices.get()):
         write_channel(step, step_time, sample, i == 0)
         logger.debug(f"wrote step {step} for {sample.name}")
         # await to unblock? time entire fn.
+    elapsed = ticks_diff(ticks_us(), t0) / 1000000
+    if elapsed > 0.02:
+        logger.warning(f"prepare_step {step} took {elapsed:.4f}s")
 
 def write_channel(step, step_time, sample, no_mix):
     global target_samples, bytes_written, step_start_bytes, planned_step_time
@@ -101,7 +105,6 @@ def write_channel(step, step_time, sample, no_mix):
     if params.step is None:
         logger.info(f"skipping step {step} ({params.step})")
         return
-    chunk_samples = sample.get_chunk(params.step)
     # stretch_block_length = 0.015 # in seconds
     stretch_block_length = control.timestretch_grain_knob.value()
     stretch_block_input_samples = round(SAMPLE_RATE_IN_HZ * stretch_block_length)
@@ -122,6 +125,10 @@ def write_channel(step, step_time, sample, no_mix):
     if params.play_step:
         volume = 0 if control.volume_knob.value() < 0.02 else control.volume_knob.value()
         mix_depth = 0 if no_mix else 1.0
+        sd_begin = ticks_us()
+        chunk_samples = sample.get_chunk(params.step)
+        sd_us = ticks_diff(ticks_us(), sd_begin)
+        dsp_begin = ticks_us()
         bytes_written = native_wav.write(audio_out_buffer,
                                          chunk_samples,
                                          stretch_block_input_samples,
@@ -132,24 +139,25 @@ def write_channel(step, step_time, sample, no_mix):
                                          volume,
                                          control.filter_knob.value(),
                                          mix_depth)
-        # logger.info(f"volume : {volume}")
+        dsp_us = ticks_diff(ticks_us(), dsp_begin)
+        if sd_us > 10000 or dsp_us > 10000:
+            logger.warning(f"step {step}: SD={sd_us}µs DSP={dsp_us}µs")
         logger.debug(f"finished writing {step} res={bytes_written}, took {ticks_diff(ticks_us(), write_begin) / 1000000}s")
 
 def seconds_to_bytes(seconds):
     samples = round(seconds * SAMPLE_RATE_IN_HZ)
     return samples * BYTES_PER_SAMPLE
 
+_skip_streak = 0
 async def write_audio(step, start, end):
+    global _skip_streak
     if planned_step_time and (lag := ticks_diff(ticks_us(), planned_step_time) / 1000000) > 0.01:
-        # skip_bytes = seconds_to_bytes(lag)
-        # pad_bytes = 256 * 2
-        # start += skip_bytes + pad_bytes
-        # if lag >= 0.015:
-        #     logger.warning(f"step {step} (planned for {planned_step_time}) is too late, skipping step")
-        #     return
-        # logger.warning(f"step {step} (planned for {planned_step_time}) lag is too high ({lag}), skipping {skip_bytes} bytes")
-        logger.warning(f"step {step} (planned for {planned_step_time}) lag is too high ({lag}), skipping step")
+        _skip_streak += 1
+        logger.warning(f"step {step} lag={lag:.4f}s streak={_skip_streak}")
         return
+    if _skip_streak > 0:
+        logger.warning(f"step {step} recovered after {_skip_streak} skips")
+        _skip_streak = 0
     swriter.out_buf = audio_out_mv[start: end]
     logger.debug(f"{step} writing audio from {start} to {end}")
     await swriter.drain()

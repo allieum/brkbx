@@ -49,8 +49,11 @@ async def run_internal_clock():
 
 started = False
 midi_clock.bpm_changed = lambda _: asyncio.create_task(prepare_step(0)) if not midi_clock.play_mode else ()
-midi_clock.clock_stopped = lambda: asyncio.create_task(prepare_step(0))
-internal_clock.clock_stopped = lambda: asyncio.create_task(prepare_step(0))
+def on_clock_stopped():
+    audio.planned_step_time = None
+    asyncio.create_task(prepare_step(0))
+midi_clock.clock_stopped = on_clock_stopped
+internal_clock.clock_stopped = on_clock_stopped
 rotary_settings = RotarySettings(sample_knob)
 
 async def main():
