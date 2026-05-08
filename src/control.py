@@ -203,6 +203,7 @@ prev_controls = ()
 def print_controls():
     global prev_controls
     values = 1
+    values = filter_knob.value()
     # values = timestretch_grain_knob.value()
     # values = (gate_fader.value(), latch_length_fader.value(), fader3.value(), fader4.value(),
     #           gate_length_fader.value(), knob2.value(), knob3.value(), knob4.value())

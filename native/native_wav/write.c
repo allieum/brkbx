@@ -3,25 +3,19 @@
 #include "py/mpprint.h"
 #include <math.h>
 
-#define MIN_LPF 200.0f
-#define MAX_LPF 12000.0f
-
-#define MIN_HPF 800.0f
-#define MAX_HPF 8000.0f
-
-static float sinfest(float x) {
-    // Normalize x to 0..2π
-    x = x - ((int)(x / (2 * 3.14159f))) * 2 * 3.14159f;
-
-    // Simple polynomial approximation
-    float x2 = x * x;
-    float x3 = x2 * x;
-    float x5 = x3 * x2;
-    return x - (x3 / 6.0f) + (x5 / 120.0f);
+// Bhaskara I sin approximation: accurate to 0.17% over [0, π], no trig calls needed.
+static float sin_fast(float x) {
+    float d = x * (3.14159265f - x);
+    return 16.0f * d / (5.0f * 9.8696044f - 4.0f * d);
 }
 
-static float cosfest(float x) {
-    return sinfest(x + 3.14159f / 2);
+// cos(x) for x in [0, π] via sin identity
+static float cos_fast(float x) {
+    float half_pi = 1.5707963f;
+    if (x <= half_pi)
+        return sin_fast(half_pi - x);
+    else
+        return -sin_fast(x - half_pi);
 }
 
 typedef struct {
@@ -29,63 +23,65 @@ typedef struct {
     float a0, a1, a2, b1, b2;
 } BiquadFilter;
 
-static void init_filter(BiquadFilter* f, float filter_depth, float samplerate) {
-    float cutoff;
+// Recalculates coefficients only — does not touch filter state.
+static void update_filter_coeffs(BiquadFilter* f, float filter_depth, float samplerate) {
     int is_highpass = filter_depth > 0;
+    float depth = fabsf(filter_depth);
+    float cutoff;
 
-    // Convert filter_depth to cutoff frequency
     if (is_highpass) {
-        cutoff = MIN_HPF + (filter_depth * (MAX_HPF - MIN_HPF));
+        // Cubic mapping: 20Hz at depth=0, 12000Hz at depth=1
+        cutoff = 20.0f + depth * depth * depth * 11980.0f;
     } else {
-        // More gradual LPF curve, especially for small negative values
-        cutoff = MAX_LPF - (fabs(filter_depth) * (MAX_LPF - MIN_LPF));
+        // Inverted cubic mapping: 20000Hz at depth=0, 60Hz at depth=1
+        float inv = 1.0f - depth;
+        cutoff = 60.0f + inv * inv * inv * 19940.0f;
     }
 
-    // Ensure cutoff stays in safe range
-    if (is_highpass) {
-        cutoff = cutoff > samplerate/2.5f ? samplerate/2.5f : cutoff;
-    } else {
-        cutoff = MAX(cutoff, 900.0f);
-    }
+    float nyq = samplerate * 0.47f;
+    if (cutoff < 20.0f) cutoff = 20.0f;
+    if (cutoff > nyq) cutoff = nyq;
 
-    /* mp_printf(&mp_plat_print, "native_wav:filter_init:: filter_depth=%f cutoff=%f\n", filter_depth, cutoff); */
+    // Q scales from Butterworth (0.707) up to resonant (3.5) with depth.
+    // This gives the classic synth-filter sweep character at high depths.
+    float q = 0.707f + depth * depth * 2.8f;
 
-    float w0 = 2.0f * 3.14159f * cutoff / samplerate;
-    float alpha = sinfest(w0) * 0.707f;
-    float cosw0 = cosfest(w0);
+    float w0 = 2.0f * 3.14159265f * cutoff / samplerate;
+    float sin_w0 = sin_fast(w0);
+    float cos_w0 = cos_fast(w0);
+    float alpha = sin_w0 / (2.0f * q);
     float norm = 1.0f / (1.0f + alpha);
 
     if (is_highpass) {
-        // High-pass coefficients
-        f->a0 = (1.0f + cosw0) * 0.5f * norm;
-        f->a1 = -(1.0f + cosw0) * norm;
+        f->a0 = (1.0f + cos_w0) * 0.5f * norm;
+        f->a1 = -(1.0f + cos_w0) * norm;
         f->a2 = f->a0;
     } else {
-        // Low-pass coefficients
-        f->a0 = (1.0f - cosw0) * 0.5f * norm;
-        f->a1 = (1.0f - cosw0) * norm;
+        f->a0 = (1.0f - cos_w0) * 0.5f * norm;
+        f->a1 = (1.0f - cos_w0) * norm;
         f->a2 = f->a0;
     }
-
-    f->b1 = -2.0f * cosw0 * norm;
+    f->b1 = -2.0f * cos_w0 * norm;
     f->b2 = (1.0f - alpha) * norm;
-    f->x1 = f->x2 = f->y1 = f->y2 = 0.0f;
 }
 
-static float process_sample(BiquadFilter* f, float in, float filter_depth) {
-    if (fabs(filter_depth) < 0.05) {
-        return in;
-    }
-    float out = f->a0 * in + f->a1 * f->x1 + f->a2 * f->x2 -
-                f->b1 * f->y1 - f->b2 * f->y2;
-
-    f->x2 = f->x1;
-    f->x1 = in;
-    f->y2 = f->y1;
-    f->y1 = out;
-
+static float process_sample(BiquadFilter* f, float in) {
+    float out = f->a0 * in + f->a1 * f->x1 + f->a2 * f->x2
+              - f->b1 * f->y1 - f->b2 * f->y2;
+    f->x2 = f->x1; f->x1 = in;
+    f->y2 = f->y1; f->y1 = out;
     return out;
 }
+
+// Persistent filter state, allocated by Python and passed as a buffer.
+// Layout: [BiquadFilter 36B][last_depth 4B][initialized 4B] = 44 bytes total.
+// initialized==0 on first call (Python bytearray starts zeroed).
+typedef struct {
+    BiquadFilter filter;
+    float last_depth;
+    int initialized;
+} FilterState;
+
 static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
     mp_obj_t audio_out = args[0];
     mp_buffer_info_t outbufinfo;
@@ -103,13 +99,23 @@ static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
     mp_int_t pitched_samples = mp_obj_get_int(args[5]);
     mp_float_t pitch_rate = mp_obj_get_float(args[6]);
     mp_float_t volume = mp_obj_get_float(args[7]);
-    mp_float_t filter_depth = mp_obj_get_float(args[8]); // New parameter
-    mp_float_t mix_depth = mp_obj_get_float(args[9]); // New parameter
+    mp_float_t filter_depth = mp_obj_get_float(args[8]);
+    mp_float_t mix_depth = mp_obj_get_float(args[9]);
+
+    mp_buffer_info_t fsbuf;
+    mp_get_buffer_raise(args[10], &fsbuf, MP_BUFFER_WRITE);
+    FilterState* fs = (FilterState*)fsbuf.buf;
 
     int interpellation_window = 10;
 
-    BiquadFilter filter;
-    init_filter(&filter, filter_depth, 44100.0f);
+    int sign_changed = fs->initialized && ((filter_depth > 0) != (fs->last_depth > 0));
+    if (!fs->initialized || fabsf(filter_depth - fs->last_depth) > 0.0001f) {
+        if (sign_changed)
+            fs->filter.x1 = fs->filter.x2 = fs->filter.y1 = fs->filter.y2 = 0.0f;
+        update_filter_coeffs(&fs->filter, filter_depth, 44100.0f);
+        fs->last_depth = filter_depth;
+        fs->initialized = 1;
+    }
 
     int samples_written = 0;
     for (int sample_offset = 0; sample_offset < pitched_samples; sample_offset += stretch_block_input_samples) {
@@ -130,7 +136,7 @@ static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
             }
 
             // Apply filter and volume
-            sample = process_sample(&filter, sample, filter_depth) * volume + mix_depth * out_buf[samples_written];
+            sample = process_sample(&fs->filter, sample) * volume + mix_depth * out_buf[samples_written];
             out_buf[samples_written++] = (int16_t)sample;
             /* mp_printf(&mp_plat_print, "native_wav: block_i = %d, j = %d\n", block_i, j); */
             if (samples_written == target_samples) {

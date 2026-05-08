@@ -43,6 +43,7 @@ audio_out = I2S(
 
 swriter = asyncio.StreamWriter(audio_out)
 audio_out_buffer = bytearray(22124)
+filter_states = [bytearray(44) for _ in range(6)]  # one per voice: BiquadFilter(36B) + last_depth(4B) + initialized(4B)
 audio_out_mv = memoryview(audio_out_buffer)
 bytes_written = 0
 target_samples = 0
@@ -76,17 +77,18 @@ async def play_step(step, bpm):
 planned_step_time = None
 async def prepare_step(step, step_time = None) -> None:
     # fx.flip.flip_sample(step)
+    await asyncio.sleep_ms(0)  # drain MIDI/clock tasks before blocking
     logger.debug(f"preparing step {step}")
     t0 = ticks_us()
     for i, sample in enumerate(active_voices.get()):
-        write_channel(step, step_time, sample, i == 0)
+        write_channel(step, step_time, sample, i == 0, i)
         logger.debug(f"wrote step {step} for {sample.name}")
         # await to unblock? time entire fn.
     elapsed = ticks_diff(ticks_us(), t0) / 1000000
     if elapsed > 0.02:
         logger.warning(f"prepare_step {step} took {elapsed:.4f}s")
 
-def write_channel(step, step_time, sample, no_mix):
+def write_channel(step, step_time, sample, no_mix, voice_index=0):
     global target_samples, bytes_written, step_start_bytes, planned_step_time
     # logger.info(f"step {step} planned for {step_time}")
     planned_step_time = step_time
@@ -138,7 +140,8 @@ def write_channel(step, step_time, sample, no_mix):
                                          params.pitch_rate,
                                          volume,
                                          control.filter_knob.value(),
-                                         mix_depth)
+                                         mix_depth,
+                                         filter_states[voice_index])
         dsp_us = ticks_diff(ticks_us(), dsp_begin)
         if sd_us > 10000 or dsp_us > 10000:
             logger.warning(f"step {step}: SD={sd_us}µs DSP={dsp_us}µs")
@@ -154,6 +157,7 @@ async def write_audio(step, start, end):
     if planned_step_time and (lag := ticks_diff(ticks_us(), planned_step_time) / 1000000) > 0.01:
         _skip_streak += 1
         logger.warning(f"step {step} lag={lag:.4f}s streak={_skip_streak}")
+        await asyncio.sleep_ms(0)  # yield between skips so main loop can run prepare_step
         return
     if _skip_streak > 0:
         logger.warning(f"step {step} recovered after {_skip_streak} skips")
