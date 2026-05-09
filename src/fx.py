@@ -122,11 +122,12 @@ class Latch:
             self.length = self.lengths[-1]
 
     def cancel(self):
-        if not self.is_active():
+        if not self.is_active() and len(self.lengths) == 0:
             return
         self.step = None
         self.count = 0
         self.samples = []
+        self.lengths = []
         logger.info("latch cancelled")
 
 class Stretch:
