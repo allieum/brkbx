@@ -37,7 +37,10 @@ class ButtonDown:
         global ephemeral_start, hold_only_press
         if held[key]:
             held[key] = False
-            borrowed_cbs.remove((key, control.keypad.up_cb[key]))
+            try:
+                borrowed_cbs.remove((key, control.keypad.up_cb[key]))
+            except:
+                pass
         if control.keypad.any_pressed([control.HOLD_KEY]):
             held[key] = True
             hold_only_press = False
@@ -107,7 +110,11 @@ class LatchDown(ButtonDown):
 
 class GateUp(ButtonUp):
     def action(self):
-        fx.joystick_mode.gate.lengths.remove(GATE_LENGTHS[self.i])
+        try:
+            fx.joystick_mode.gate.lengths.remove(GATE_LENGTHS[self.i])
+        except:
+            logger.debug(f"remove: {GATE_LENGTHS[self.i]} is not in gate lengths?")
+            
         if not any_pressed_or_held(control.GATE_KEYS):
             fx.joystick_mode.gate.lengths = []
 

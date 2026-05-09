@@ -114,7 +114,10 @@ class Latch:
         return self.step is not None
 
     def unlatch(self, length):
-        self.lengths.remove(length)
+        try:
+            self.lengths.remove(length)
+        except:
+            logger.debug(f"remove: {length} is not in latch lengths?")
         if len(self.lengths) > 0:
             self.length = self.lengths[-1]
 

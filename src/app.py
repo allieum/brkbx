@@ -77,7 +77,7 @@ async def main():
             ticks = ticks_us()
             clock = get_running_clock()
             ui.update_leds()
-            # control.print_controls()
+            control.print_controls()
             estimated_keyevent_ticks = ticks_diff(ticks, KEY_EVENT_AVG_TICKS_ERR)
             # logger.info(f"starting keypad scan, est keyevent ticks {estimated_keyevent_ticks} vs ticks {ticks}")
             control.keypad.read_keypad(estimated_keyevent_ticks)
