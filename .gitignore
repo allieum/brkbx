@@ -7,3 +7,5 @@ tmp/*
 /.cache/
 /native/py/__pycache__/*.pyc
 .venv/
+.env
+scripts/__pycache__

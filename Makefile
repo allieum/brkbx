@@ -10,6 +10,9 @@ list-samples:
 copy-samples:
 	mpr run copy_samples.py
 
+sync-samples:
+	python scripts/manage_samples.py -l "/Users/robinlake/Music/Ableton/Ableton Tracks/Lotus Grrl/Breakbox breaks Project/current-samples"
+
 build-native:
 	cd native/native_wav && make
 
