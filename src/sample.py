@@ -2,6 +2,7 @@ from typing import Tuple, List
 import utility
 import math
 import os
+TEENSY_SAMPLE_DIR = "/flash/samples"
 
 logger = utility.get_logger(__name__)
 
@@ -125,7 +126,7 @@ current_sample = 0
 def init():
     global samples, samples404, offset404
     samples404 = [] # load_samples("/sd/samples/404")
-    samples = load_samples("/flash/samples/160") + samples404
+    samples = load_samples(TEENSY_SAMPLE_DIR) + samples404
     offset404 = len(samples) - len(samples404)
 
     # samples = load_samples("/sd/samples/ESSENTIAL DRUM BREAKS")

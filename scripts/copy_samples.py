@@ -10,7 +10,7 @@ for d in ('/flash/samples', '/flash/samples/160'):
         pass  # already exists
 
 src_dir = '/sd/samples/160'
-dst_dir = '/flash/samples/160'
+dst_dir = '/flash/samples'
 files = sorted(f for f in os.listdir(src_dir) if f.endswith('.wav'))
 print(f'copying {len(files)} files to internal flash...')
 
