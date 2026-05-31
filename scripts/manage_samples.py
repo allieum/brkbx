@@ -157,7 +157,8 @@ def main() -> None:
     parser.add_argument(
         "--local",
         "-l",
-        help="local directory of .wav files (default: $LOCAL_SAMPLE_DIR or %(default)s)",
+        default=os.environ.get("LOCAL_BREAK_SAMPLE_DIRECTORY"),
+        help="local directory of .wav files (default: $LOCAL_BREAK_SAMPLE_DIRECTORY)",
     )
     parser.add_argument(
         "--remote",
@@ -172,6 +173,10 @@ def main() -> None:
         help="print planned changes without touching the device",
     )
     args = parser.parse_args()
+    if not args.local:
+        sys.exit(
+            "local directory not set; pass --local or set LOCAL_BREAK_SAMPLE_DIRECTORY in .env"
+        )
     sync(args.local, args.remote, dry_run=args.dry_run)
 
 
