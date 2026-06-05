@@ -106,7 +106,7 @@ static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
     mp_get_buffer_raise(args[10], &fsbuf, MP_BUFFER_WRITE);
     FilterState* fs = (FilterState*)fsbuf.buf;
 
-    int interpellation_window = 10;
+    // int interpellation_window = 10;
 
     int sign_changed = fs->initialized && ((filter_depth > 0) != (fs->last_depth > 0));
     if (!fs->initialized || fabsf(filter_depth - fs->last_depth) > 0.0001f) {
@@ -124,16 +124,16 @@ static mp_obj_t write(size_t n_args, const mp_obj_t* args) {
             int block_i = i % stretch_block_size;
 
             float sample;
-            int block_samples_left = stretch_block_output_samples - i;
-            if (block_samples_left < interpellation_window && sample_offset + stretch_block_input_samples < pitched_samples) {
-                int16_t prev_sample = out_buf[samples_written - 1];
-                int next_block_j = pitch_rate * (sample_offset + stretch_block_input_samples);
-                int16_t next_block_start_sample = source_buf[next_block_j];
-                sample = prev_sample + (next_block_start_sample - prev_sample) / block_samples_left;
-            } else {
-                int j = pitch_rate * (sample_offset + block_i);
-                sample = source_buf[j];
-            }
+            // int block_samples_left = stretch_block_output_samples - i;
+            // if (block_samples_left < interpellation_window && sample_offset + stretch_block_input_samples < pitched_samples) {
+            //     int16_t prev_sample = out_buf[samples_written - 1];
+            //     int next_block_j = pitch_rate * (sample_offset + stretch_block_input_samples);
+            //     int16_t next_block_start_sample = source_buf[next_block_j];
+            //     sample = prev_sample + (next_block_start_sample - prev_sample) / block_samples_left;
+            // } else {
+            int j = pitch_rate * (sample_offset + block_i);
+            sample = source_buf[j];
+            // }
 
             // Apply filter and volume
             sample = process_sample(&fs->filter, sample) * volume + mix_depth * out_buf[samples_written];

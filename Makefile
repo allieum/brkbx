@@ -11,7 +11,7 @@ copy-samples:
 	mpr run copy_samples.py
 
 .PHONY: sync-samples
-sync-samples:
+sync-samples: convert-to-mono
 	@bash -euo pipefail -c '\
 		set -a; [ -f .env ] && source .env; set +a; \
 		if [ -z "$$LOCAL_BREAK_SAMPLE_DIRECTORY" ]; then \
@@ -23,7 +23,7 @@ sync-samples:
 			exit 1; \
 		fi; \
 		exec python scripts/manage_samples.py -l "$$LOCAL_BREAK_SAMPLE_DIRECTORY" \
-	'
+	' && mpr run src/main.py
 
 .PHONY: convert-to-mono
 convert-to-mono:
