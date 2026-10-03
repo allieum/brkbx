@@ -9,3 +9,4 @@ tmp/*
 .venv/
 .env
 scripts/__pycache__
+/samples/

@@ -39,12 +39,13 @@ def _device_str(value: str) -> str:
     return repr(value)
 
 
-def _wav_names_from_stdout(stdout: str) -> set[str]:
-    return {
-        line.strip()
-        for line in stdout.splitlines()
-        if line.strip().endswith(".wav") and not line.strip().startswith(".upload_")
-    }
+def _wav_sizes_from_stdout(stdout: str) -> dict[str, int]:
+    sizes: dict[str, int] = {}
+    for line in stdout.splitlines():
+        size, sep, name = line.rstrip("\r\n").partition("\t")
+        if sep and size.isdigit() and name.endswith(".wav") and not name.startswith(".upload_"):
+            sizes[name] = int(size)
+    return sizes
 
 
 def ensure_remote_dir(remote_dir: str) -> None:
@@ -56,7 +57,7 @@ def ensure_remote_dir(remote_dir: str) -> None:
     run_mpremote("exec", "\n".join(lines))
 
 
-def list_remote(remote_dir: str) -> set[str]:
+def list_remote(remote_dir: str) -> dict[str, int]:
     script = (
         "import os\n"
         f"remote = {_device_str(remote_dir)}\n"
@@ -64,15 +65,16 @@ def list_remote(remote_dir: str) -> set[str]:
         "    names = [n for n in os.listdir(remote) if n.endswith('.wav') and not n.startswith('.upload_')]\n"
         "except OSError:\n"
         "    names = []\n"
-        "print('\\n'.join(names))"
+        "for n in names:\n"
+        "    print(str(os.stat(remote + '/' + n)[6]) + '\\t' + n)"
     )
     result = run_mpremote("exec", script)
-    return _wav_names_from_stdout(result.stdout)
+    return _wav_sizes_from_stdout(result.stdout)
 
 
-def list_local(local_dir: str) -> set[str]:
+def list_local(local_dir: str) -> dict[str, int]:
     return {
-        name
+        name: os.path.getsize(os.path.join(local_dir, name))
         for name in os.listdir(local_dir)
         if name.endswith(".wav") and os.path.isfile(os.path.join(local_dir, name))
     }
@@ -122,8 +124,9 @@ def sync(local_dir: str, remote_dir: str, *, dry_run: bool = False) -> None:
     local = list_local(local_dir)
     remote = list_remote(remote_dir)
 
-    to_delete = sorted(remote - local)
-    to_put = sorted(local - remote)
+    to_delete = sorted(remote.keys() - local.keys())
+    # upload anything missing from the device or whose size differs
+    to_put = sorted(name for name, size in local.items() if remote.get(name) != size)
 
     if dry_run:
         for filename in to_delete:

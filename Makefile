@@ -25,6 +25,10 @@ sync-samples: convert-to-mono
 		exec python scripts/manage_samples.py -l "$$LOCAL_BREAK_SAMPLE_DIRECTORY" \
 	' && mpr run src/main.py
 
+.PHONY: pull-samples
+pull-samples:
+	python scripts/pull_samples.py
+
 .PHONY: convert-to-mono
 convert-to-mono:
 	@./scripts/convert_to_mono.sh

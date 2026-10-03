@@ -11,7 +11,7 @@ class InternalClock:
     def __init__(self):
         self.song_position = 0
         self.play_mode = False
-        self.bpm = 160
+        self.bpm = 140
         self.start_ticks = None
         self.bpm_changed = lambda _: ()
         self.clock_count = -1
